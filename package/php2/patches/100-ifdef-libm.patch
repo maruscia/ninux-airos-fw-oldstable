@@ -1,0 +1,184 @@
+--- a/src/calc.c
++++ b/src/calc.c
+@@ -592,6 +592,7 @@ void Abs(void) {
+ }
+ 
+ void Exp(void) {
++#ifdef LIBM
+ 	Stack *s;
+ 	char temp[64];
+ 
+@@ -602,9 +603,11 @@ void Exp(void) {
+ 	}
+ 	sprintf(temp,"%f",exp(s->douval));	
+ 	Push(temp,DNUMBER);
++#endif
+ }
+ 
+ void Pow(void) {
++#ifdef LIBM
+ 	Stack *s;
+ 	char temp[64];
+ 	double power;
+@@ -622,9 +625,11 @@ void Pow(void) {
+ 	}
+ 	sprintf(temp,"%f",pow(s->douval,power));	
+ 	Push(temp,DNUMBER);
++#endif
+ }
+ 
+ void mathLog(void) {
++#ifdef LIBM
+ 	Stack *s;
+ 	char temp[64];
+ 
+@@ -635,9 +640,11 @@ void mathLog(void) {
+ 	}
+ 	sprintf(temp,"%f",log(s->douval));	
+ 	Push(temp,DNUMBER);
++#endif
+ }
+ 
+ void mathLog10(void) {
++#ifdef LIBM
+ 	Stack *s;
+ 	char temp[64];
+ 
+@@ -648,9 +655,11 @@ void mathLog10(void) {
+ 	}
+ 	sprintf(temp,"%f",log10(s->douval));	
+ 	Push(temp,DNUMBER);
++#endif
+ }
+ 
+ void Sin(void) {
++#ifdef LIBM
+ 	Stack *s;
+ 	char temp[64];
+ 
+@@ -661,9 +670,11 @@ void Sin(void) {
+ 	}
+ 	sprintf(temp,"%f",sin(s->douval));	
+ 	Push(temp,DNUMBER);
++#endif
+ }
+ 
+ void Cos(void) {
++#ifdef LIBM
+ 	Stack *s;
+ 	char temp[64];
+ 
+@@ -674,9 +685,11 @@ void Cos(void) {
+ 	}
+ 	sprintf(temp,"%f",cos(s->douval));	
+ 	Push(temp,DNUMBER);
++#endif
+ }
+ 
+ void Tan(void) {
++#ifdef LIBM
+ 	Stack *s;
+ 	char temp[64];
+ 
+@@ -687,9 +700,11 @@ void Tan(void) {
+ 	}
+ 	sprintf(temp,"%f",tan(s->douval));	
+ 	Push(temp,DNUMBER);
++#endif
+ }
+ 
+ void Sqrt(void) {
++#ifdef LIBM
+ 	Stack *s;
+ 	char temp[64];
+ 
+@@ -705,9 +720,11 @@ void Sqrt(void) {
+ 	}
+ 	sprintf(temp,"%f",sqrt(s->douval));	
+ 	Push(temp,DNUMBER);
++#endif
+ }
+ 
+ void Ceil(void) {
++#ifdef LIBM
+ 	Stack *s;
+ 	char temp[64];
+ 
+@@ -718,9 +735,11 @@ void Ceil(void) {
+ 	}
+ 	sprintf(temp,"%f",ceil(s->douval));
+ 	Push(temp,DNUMBER);
++#endif
+ }
+ 
+ void Floor(void) {
++#ifdef LIBM
+ 	Stack *s;
+ 	char temp[64];
+ 
+@@ -731,5 +750,6 @@ void Floor(void) {
+ 	}
+ 	sprintf(temp,"%f",floor(s->douval));
+ 	Push(temp,DNUMBER);
++#endif
+ }
+ 
+--- a/src/lex.c
++++ b/src/lex.c
+@@ -104,15 +104,19 @@ static cmd_table_t cmd_table[PHP_MAX_CMD
+ 	  { "min", INTFUNC1,ArrayMin },
+ 	  { "key", KEY,NULL },
+ 	  { "end", END,NULL },
++#ifdef LIBM
+ 	  { "sin", INTFUNC1,Sin },
+ 	  { "cos", INTFUNC1,Cos },
+ 	  { "tan", INTFUNC1,Tan },
+ 	  { "exp", INTFUNC1,Exp },
+ 	  { "log", INTFUNC1,mathLog },
++#endif
+ 	  { "abs", INTFUNC1,Abs },
+ 	  { "ord", INTFUNC1,Ord },
+ 	  { "chr", INTFUNC1,Chr },
++#ifdef LIBM
+ 	  { "pow", INTFUNC2,Pow },
++#endif
+ 	  { "pos", INTFUNC1,Pos },
+ 	  { "md5", INTFUNC1,Md5 },
+ 	  { "shl", INTFUNC2,shl },
+@@ -134,12 +138,16 @@ static cmd_table_t cmd_table[PHP_MAX_CMD
+ 	  { "prev",PREV,NULL },
+ 	  { "sort",PHPSORT,NULL },
+ 	  { "rand",INTFUNC0,Rand },
++#ifdef LIBM
+ 	  { "sqrt",INTFUNC1,Sqrt },
++#endif
+ 	  { "file",INTFUNC1,PHPFile },
+ 	  { "link",INTFUNC2,Link },
+ 	  { "mail",PHPMAIL,NULL },
+ 	  { "chop",INTFUNC1,Chop },
++#ifdef LIBM
+ 	  { "ceil",INTFUNC1,Ceil },
++#endif
+ 	  { NULL,0,NULL } }, 
+ 
+ 	{ { "endif",ENDIF,NULL },   /* 5 */
+@@ -165,7 +173,9 @@ static cmd_table_t cmd_table[PHP_MAX_CMD
+ 	  { "chgrp",INTFUNC2,ChGrp },
+ 	  { "mkdir",INTFUNC2,MkDir },
+ 	  { "rmdir",INTFUNC1,RmDir },
++#ifdef LIBM
+ 	  { "log10",INTFUNC1,mathLog10 },
++#endif
+ 	  { "unset",UNSET,NULL },
+ 	  { "mysql",INTFUNC2,MYsql },
+ 	  { "asort",PHPASORT,NULL },
+@@ -173,7 +183,9 @@ static cmd_table_t cmd_table[PHP_MAX_CMD
+ 	  { "logas", INTFUNC1,LogAs },
+ 	  { "rsort",PHPRSORT,NULL },
+ 	  { "strtr",INTFUNC3,StrTr },
++#ifdef LIBM
+ 	  { "floor",INTFUNC1,Floor },
++#endif
+ 	  { NULL,0,NULL } }, 
+ 
+ 	{ { "elseif",ELSEIF,NULL }, /* 6 */

@@ -1,0 +1,142 @@
+--- a/src/adabasd.c
++++ b/src/adabasd.c
+@@ -296,9 +296,9 @@ void ada_sql_error(HDBC conn, HSTMT stmt
+ 
+ /* PHP house keeping function */
+ 
++#ifdef HAVE_LIBADABAS
+ void Ada_closeAll(void)
+ {
+-#ifdef HAVE_LIBADABAS
+ 	AdaResultList *lnew, *lnext;
+ 	AdaConnList   *cnew, *cnext;
+ 
+@@ -320,8 +320,8 @@ void Ada_closeAll(void)
+ 		cnew=cnext;
+ 	}
+ 	ada_conn_top = NULL;
+-#endif
+ }
++#endif
+ 
+ /* Main User Functions */
+ 
+@@ -481,9 +481,9 @@ void Ada_exec(void)
+ #endif
+ }
+ 
++#ifdef HAVE_LIBADABAS
+ void Ada_fetchRow(int mode)
+ {
+-#ifdef HAVE_LIBADABAS
+ 	Stack       *s;
+ 	int         res_ind;
+ 	SDWORD      rownum = 1;
+@@ -545,13 +545,8 @@ void Ada_fetchRow(int mode)
+ 	
+ 	Push("1", LNUMBER);
+ 	return;
+-
+-#else
+-	Pop();
+-	Push("", STRING);
+-	Error("No Adabas support");
+-#endif
+ }
++#endif
+ 
+ void Ada_result(void)
+ {
+@@ -701,9 +696,9 @@ void Ada_result(void)
+ #endif
+ }
+ 
++#ifdef HAVE_LIBADABAS
+ void Ada_resultAll(int mode)
+ {
+-#ifdef HAVE_LIBADABAS
+ 	Stack       *s;
+ 	char        tmp[256];
+ 	int         res_ind;
+@@ -794,18 +789,12 @@ void Ada_resultAll(int mode)
+   	sprintf(tmp,"%d",result->fetched);
+   	Push(tmp,LNUMBER);
+   	return;
+-
+-#else
+-	Pop();
+-	Pop();
+-	Push("", STRING);
+-	Error("No Adabas support");
+-#endif
+ }
++#endif
+ 
++#ifdef HAVE_LIBADABAS
+ void Ada_freeResult(void)
+ {
+-#ifdef HAVE_LIBADABAS
+ 	Stack	*s;
+ 
+ 	s = Pop();
+@@ -820,11 +809,8 @@ void Ada_freeResult(void)
+ 		Error("Invalid result index in ada_freeresult");
+ 		return;
+ 	}
+-#else
+-	Pop();
+-	Error("No Adabas support");
+-#endif
+ }
++#endif
+ 
+ void Ada_connect(void)
+ {
+@@ -1027,9 +1013,9 @@ void Ada_numFields(void)
+ #endif
+ }
+ 
++#ifdef HAVE_LIBADABAS
+ void Ada_Field(int mode)
+ {
+-#ifdef HAVE_LIBADABAS
+ 	Stack	*s;
+ 	int	res_ind;
+ 	int	field_ind;
+@@ -1100,12 +1086,8 @@ if(mode == 3)
+ 		Push(tmp,LNUMBER);
+ 	else
+ 		Push(tmp, STRING);
+-#else
+-	Pop();
+-	Pop();
+-	Error("No Adabas support");
+-#endif
+ }
++#endif
+ 
+ void Ada_fieldNum(void)
+ {
+--- a/src/php.h
++++ b/src/php.h
+@@ -1241,6 +1241,7 @@ void MYsqlAffectedRows(void);
+ void mysqlSetCurrent();
+ 
+ /* adabasd.c */
++#ifdef HAVE_LIBADABAS
+ void Ada_exec(void);
+ void Ada_close(void);
+ void Ada_result(void);
+@@ -1254,6 +1255,12 @@ void Ada_Field(int);
+ void Ada_freeResult(void);
+ void Ada_closeAll(void);
+ void php_init_adabas(char *,char *,char *);
++#else
++#define Ada_fetchRow(a)
++#define Ada_resultAll(a)
++#define Ada_Field(a)
++#define Ada_closeAll()
++#endif
+ 
+ /* solid.c */
+ void Solid_exec(void);

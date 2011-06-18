@@ -1,0 +1,45 @@
+--- a/hostapd/accounting.c
++++ b/hostapd/accounting.c
+@@ -238,10 +238,6 @@ void accounting_sta_start(struct hostapd
+ 		return;
+ 
+ 	accounting_sta_get_id(hapd, sta);
+-	hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_RADIUS,
+-		       HOSTAPD_LEVEL_INFO,
+-		       "starting accounting session %08X-%08X",
+-		       sta->acct_session_id_hi, sta->acct_session_id_lo);
+ 
+ 	time(&sta->acct_session_start);
+ 	sta->last_rx_bytes = sta->last_tx_bytes = 0;
+@@ -251,6 +247,11 @@ void accounting_sta_start(struct hostapd
+ 	if (!hapd->conf->radius->acct_server)
+ 		return;
+ 
++	hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_RADIUS,
++		       HOSTAPD_LEVEL_INFO,
++		       "starting accounting session %08X-%08X",
++		       sta->acct_session_id_hi, sta->acct_session_id_lo);
++
+ 	if (sta->acct_interim_interval)
+ 		interval = sta->acct_interim_interval;
+ 	else
+--- a/hostapd/wpa.c
++++ b/hostapd/wpa.c
+@@ -666,6 +666,17 @@ void wpa_receive(struct wpa_authenticato
+ 		wpa_auth_vlogger(wpa_auth, sm->addr, LOGGER_INFO,
+ 				 "received EAPOL-Key %s with unexpected "
+ 				 "replay counter", msgtxt);
++		wpa_auth_vlogger(wpa_auth, sm->addr, LOGGER_INFO,
++				 "expected 0x%0x%0x%0x%0x%0x%0x%0x%0x vs received 0x%0x%0x%0x%0x%0x%0x%0x%0x",
++				 sm->key_replay_counter[0], sm->key_replay_counter[1],
++				 sm->key_replay_counter[2], sm->key_replay_counter[3],
++				 sm->key_replay_counter[4], sm->key_replay_counter[5],
++				 sm->key_replay_counter[6], sm->key_replay_counter[7],
++				 key->replay_counter[0],	key->replay_counter[1],
++				 key->replay_counter[2],	key->replay_counter[3],
++				 key->replay_counter[4],	key->replay_counter[5],
++				 key->replay_counter[6],	key->replay_counter[7]
++				 );
+ 		wpa_hexdump(MSG_DEBUG, "expected replay counter",
+ 			    sm->key_replay_counter, WPA_REPLAY_COUNTER_LEN);
+ 		wpa_hexdump(MSG_DEBUG, "received replay counter",

@@ -1,0 +1,113 @@
+--- a/src/main.c
++++ b/src/main.c
+@@ -91,6 +91,7 @@ int main(int argc, char **argv) {
+ 	php_init_yacc();	/* parser 			*/
+ 	php_init_lex();		/* lexical analyser 		lex.c */
+ 	php_init_error(); 	/* php error stack		*/
++	php_init_reg();		/* regular expression cache	*/
+ 	php_init_stack();	/* php internal stack 		*/ 
+ 	php_init_symbol_tree(); 
+ 	php_init_switch();
+--- a/src/php.h
++++ b/src/php.h
+@@ -712,6 +712,9 @@ void shr(void);
+ void Ceil(void);
+ void Floor(void);
+ 
++/* reg.c */
++void php_init_reg(void);
++
+ /* stack.c */
+ void Push(char *, int);
+ Stack *Pop(void);
+--- a/src/reg.c
++++ b/src/reg.c
+@@ -284,6 +284,68 @@ char *_RegReplace(char *pattern, char *r
+ 	return(buf);
+ }
+ 
++#define CACHE_SIZE	8
++#define MAX_PATTERN	80
++
++typedef struct reg_data {
++	int	cflags;
++	char	pattern[MAX_PATTERN];
++	regex_t	preg;
++} reg_data_t;
++
++typedef struct reg_cache {
++	int		last_used;
++	reg_data_t	reg_data[CACHE_SIZE];
++} reg_cache_t;
++
++static reg_cache_t rc;
++
++void php_init_reg(void)
++{
++	memset(&rc, 0, sizeof(rc));
++	rc.last_used = -1;
++}
++
++/* 0 on success, otherwise REG_something */
++int _RegcompCache(regex_t *preg, const char *pattern, int cflags)
++{
++	int i, ret = 0;
++
++	if (!preg || !pattern || strlen(pattern) == 0) {
++		return REG_BADPAT;
++	}
++
++	/* try to find in cache first */
++	for (i=0; i<CACHE_SIZE; ++i) {
++		if (strncmp(pattern, rc.reg_data[i].pattern, MAX_PATTERN) == 0 &&
++		    cflags == rc.reg_data[i].cflags) {
++			/* found. memcpy & return */
++			memcpy(preg, &rc.reg_data[i].preg, sizeof(*preg));
++			return ret;
++		}
++	}
++
++	/* not found. compile, save & return */
++	ret = regcomp(preg, pattern, cflags);
++	if (ret == 0 && strlen(pattern) < MAX_PATTERN) {
++		int idx = rc.last_used + 1;
++		if (idx >= CACHE_SIZE)
++			idx = 0;
++
++		if (rc.last_used != -1) {
++			/* need cleanup first */
++			regfree(&rc.reg_data[idx].preg);
++		}
++
++		rc.reg_data[idx].cflags = cflags;
++		strncpy(rc.reg_data[idx].pattern, pattern, MAX_PATTERN);
++		memcpy(&rc.reg_data[idx].preg, preg, sizeof(*preg));
++		rc.last_used = idx;
++	}
++
++	return ret;
++}
++
+ void EReg(char *reg_name, int icase) {
+ 	Stack *s;	
+ 	regex_t re;
+@@ -314,7 +376,7 @@ void EReg(char *reg_name, int icase) {
+ 	if(!reg_name) copts |= REG_NOSUB;
+ 	if(icase) copts |= REG_ICASE;
+ 	if(s->type == STRING) {
+-		err = regcomp(&re, s->strval, REG_EXTENDED | copts);
++		err = _RegcompCache(&re, s->strval, REG_EXTENDED | copts);
+ 	} else {
+ 		temp3 = emalloc(1,sizeof(char)*2);
+ 		sprintf(temp3,"%c",(int)s->intval);
+@@ -365,7 +427,9 @@ void EReg(char *reg_name, int icase) {
+ 		sprintf(temp2,"%d",len);
+ 		Push(temp2,LNUMBER);
+ 	}
+-	regfree(&re);
++
++	/* not used anymore - regexp shall remain in cache */
++	/* regfree(&re); */
+ }
+ 
+ void ERegReplace(void) {

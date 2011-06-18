@@ -1,0 +1,485 @@
+--- a/src/lex.c
++++ b/src/lex.c
+@@ -223,7 +223,9 @@ static const cmd_table_t cmd_table[PHP_M
+ 	  { "octdec",INTFUNC1,OctDec }, 
+ 	  { "decoct",INTFUNC1,DecOct }, 
+ 	  { "usleep",INTFUNC1,USleep },
++#ifdef HAVE_LIBPQ
+ 	  { "pg_tty",INTFUNC1,PGtty },
++#endif
+ 	  { "fgetss",INTFUNC2,Fgetss },
+ 	  { "uniqid",INTFUNC1,UniqId },
+ 	  { "syslog",INTFUNC2,Syslog },
+@@ -243,9 +245,11 @@ static const cmd_table_t cmd_table[PHP_M
+ 	  { "settype", INTFUNC2,SetType }, 
+ 	  { "gettype", INTFUNC1,GetType }, 
+ 	  { "ucfirst", INTFUNC1,UcFirst }, 
++#ifdef HAVE_LIBPQ
+ 	  { "pg_exec", INTFUNC2,PGexec },
+ 	  { "pg_host", INTFUNC1,PGhost },
+ 	  { "pg_port", INTFUNC1,PGport },
++#endif
+ 	  { "phpinfo", INTFUNC0,Info },
+ #if APACHE
+ 	  { "virtual", INTFUNC1,Virtual },
+@@ -279,7 +283,9 @@ static const cmd_table_t cmd_table[PHP_M
+ 	  { "getmypid",INTFUNC0,GetMyPid },
+ 	  { "imagegif",IMAGEGIF,NULL },
+ 	  { "imagearc",IMAGEARC,NULL },
++#ifdef HAVE_LIBPQ
+ 	  { "pg_close",INTFUNC1,PGclose },
++#endif
+ 	  { "passthru",PASSTHRU,NULL },
+ 	  { "readlink",INTFUNC1,ReadLink },
+ 	  { "linkinfo",INTFUNC1,LinkInfo },
+@@ -331,8 +337,10 @@ static const cmd_table_t cmd_table[PHP_M
+ 	  { "urlencode", INTFUNC1,UrlEncode },
+ 	  { "urldecode", INTFUNC1,UrlDecode },
+ 	  { "quotemeta", INTFUNC1,QuoteMeta },
++#ifdef HAVE_LIBPQ
+ 	  { "pg_result", INTFUNC3,PG_result },
+ 	  { "pg_dbname", INTFUNC1,PGdbName },
++#endif
+ 	  { "setcookie", SETCOOKIE,NULL },
+ 	  { "parse_str", PARSESTR,NULL },
+ #ifdef HAVE_LIBOCIC
+@@ -364,9 +372,11 @@ static const cmd_table_t cmd_table[PHP_M
+ 	  { "getmyinode", INTFUNC0,GetMyInode },
+ 	  { "getrandmax", INTFUNC0,GetRandMax },
+ 	  { "setlogging", INTFUNC1,SetLogging },
++#ifdef HAVE_LIBPQ
+ 	  { "pg_numrows", INTFUNC1,PGnumRows },
+ 	  { "pg_options", INTFUNC1,PGoptions },
+ 	  { "pg_connect", INTFUNC5,PGconnect },
++#endif
+ 	  { "phpversion", INTFUNC0,PHPVersion },
+ 	  { "addslashes", INTFUNC1,_AddSlashes },
+ #ifdef HAVE_LIBMSQL
+@@ -406,7 +416,9 @@ static const cmd_table_t cmd_table[PHP_M
+ 	  { "msql_dbname", INTFUNC2,MsqlDBName },
+ 	  { "msql_dropdb", INTFUNC1,MsqlDropDB },
+ #endif
++#ifdef HAVE_LIBPQ
+ 	  { "pg_fieldnum", INTFUNC2,PGfieldNum },
++#endif
+ #ifdef HAVE_LIBMYSQL
+ 	  { "mysql_close", INTFUNC0,MYsqlClose },
+ #endif
+@@ -438,10 +450,12 @@ static const cmd_table_t cmd_table[PHP_M
+ #ifdef HAVE_LIBMSQL
+ 	  { "msql_listdbs", INTFUNC0,MsqlListDBs },
+ #endif
++#ifdef HAVE_LIBPQ
+ 	  { "pg_numfields", INTFUNC1,PGnumFields },
+ 	  { "pg_fieldname", INTFUNC2,PGfieldName },
+ 	  { "pg_fieldtype", INTFUNC2,PGfieldType },
+ 	  { "pg_fieldsize", INTFUNC2,PGfieldSize },
++#endif
+ 	  { "stripslashes", INTFUNC1,_StripSlashes },
+ #ifdef HAVE_LIBMYSQL
+ 	  { "mysql_result", INTFUNC3, MYsqlResult },
+@@ -478,8 +492,10 @@ static const cmd_table_t cmd_table[PHP_M
+ #ifdef HAVE_LIBMSQL
+ 	  { "msql_createdb", INTFUNC1,MsqlCreateDB },
+ #endif
++#ifdef HAVE_LIBPQ
+ 	  { "pg_freeresult", INTFUNC1,PGfreeResult },
+ 	  { "pg_getlastoid", INTFUNC0,PGgetlastoid },
++#endif
+ #ifdef HAVE_LIBMYSQL
+ 	  { "mysql_connect", MYSQL_CONNECT,NULL },
+ 	  { "mysql_numrows", INTFUNC1,MYsqlNumRows },
+@@ -516,7 +532,9 @@ static const cmd_table_t cmd_table[PHP_M
+ #ifdef HAVE_LIBMSQL
+ 	  { "msql_tablename", INTFUNC2,MsqlTableName },
+ #endif
++#ifdef HAVE_LIBPQ
+ 	  { "pg_fieldprtlen", INTFUNC3,PGfieldPrtLen },
++#endif
+ 	  { "escapeshellcmd", INTFUNC1,EscapeShellCmd },
+ #ifdef HAVE_LIBMYSQL
+ 	  { "mysql_fieldlen", MYSQL_FIELDLEN,NULL },
+@@ -544,7 +562,9 @@ static const cmd_table_t cmd_table[PHP_M
+ 	  { "msql_listfields", INTFUNC2,MsqlListFields },
+ #endif
+ 	  { "getstartlogging", INTFUNC0,GetStartLogging },
++#ifdef HAVE_LIBPQ
+ 	  { "pg_errormessage", INTFUNC1,PGerrorMessage },
++#endif
+ #ifdef HAVE_LIBMYSQL
+ 	  { "mysql_fieldname", MYSQL_FIELDNAME,NULL },
+ 	  { "mysql_fieldtype", MYSQL_FIELDTYPE,NULL },
+--- a/src/pg95.c
++++ b/src/pg95.c
+@@ -75,16 +75,16 @@ static int	pg95_ind=2;
+ static int	pg95_conn_ind=1;
+ #endif
+ 
+-void php_init_pg95(void) {
+ #ifdef HAVE_LIBPQ
++void php_init_pg95(void) {
+ 	pg_result_top=NULL;
+ 	pg_conn_top=NULL;
+ 	pgTypeRes=0;
+ 	pgLastOid=-1;
+ 	pg95_ind=2;
+ 	pg95_conn_ind=1;
+-#endif
+ }
++#endif
+ 
+ /***************************************************
+  *
+@@ -284,12 +284,10 @@ char* pg_type(PGconn* conn, int toid)
+ 
+ 	return NULL;
+ }
+-#endif
+ 
+ /* PHP house keeping function */
+ 
+ void PGcloseAll(void) {
+-#ifdef HAVE_LIBPQ
+ 	pgResultList	*lnew, *lnext;
+ 	pgConnList	*cnew, *cnext;
+ 
+@@ -308,13 +306,11 @@ void PGcloseAll(void) {
+ 		cnew=cnext;
+ 	}
+ 	pg_conn_top = NULL;
+-#endif
+ }
+ 
+ /* Main User Functions */
+ 
+ void PGexec(void) {
+-#ifdef HAVE_LIBPQ
+ 	Stack	*s;
+ 	int	conn;
+ 	ExecStatusType	stat;
+@@ -412,16 +408,9 @@ void PGexec(void) {
+ 
+ 	sprintf(temp, "%d", j);
+ 	Push(temp,LNUMBER);
+-#else
+-	Pop();
+-	Pop();
+-	Push("0", LNUMBER);
+-	Error("No postgres95 support");
+-#endif
+ }
+ 
+ void PG_result(void) {
+-#ifdef HAVE_LIBPQ
+ 	Stack		*s;
+ 	char		*field;
+ 	char		*ftype;
+@@ -584,18 +573,9 @@ void PG_result(void) {
+ 
+ 	Push((ret=AddSlashes(tmp,1)), STRING);
+ 	return;
+-
+-#else
+-	Pop();
+-	Pop();
+-	Pop();
+-	Push("", STRING);
+-	Error("No Postgres95 support");
+-#endif
+ }
+ 
+ void PGfreeResult(void) {
+-#ifdef HAVE_LIBPQ
+ 	Stack		*s;
+ 
+ 	s = Pop();
+@@ -609,14 +589,9 @@ void PGfreeResult(void) {
+ 		Error("Invalid result index in pg_freeresult");
+ 		return;
+ 	}
+-#else
+-	Pop();
+-	Error("No Postgres95 support");
+-#endif
+ }
+ 
+ void PGconnect(void) {
+-#ifdef HAVE_LIBPQ
+ 	Stack		*s;
+ 	PGconn		*new_conn;
+ 	char		*host=NULL;
+@@ -711,18 +686,9 @@ void PGconnect(void) {
+ 			
+ 	}
+ 	Push(temp, LNUMBER);
+-#else
+-	Pop();
+-	Pop();
+-	Pop();
+-	Pop();
+-	Pop();
+-	Error("No postgres95 support");
+-#endif
+ }
+ 
+ void PGclose(void) {
+-#ifdef HAVE_LIBPQ
+ 	Stack		*s;
+ 	int		conn_ind;
+ 	PGconn		*conn;
+@@ -738,14 +704,9 @@ void PGclose(void) {
+ 	conn = pg_get_conn(conn_ind);
+ 
+ 	pg_del_conn(conn);
+-#else
+-	Pop();
+-	Error("No postgres95 support");
+-#endif
+ }
+ 
+ void PGnumRows(void) {
+-#ifdef HAVE_LIBPQ
+ 	Stack		*s;
+ 	int		res_ind;
+ 	PGresult	*result;
+@@ -775,15 +736,10 @@ void PGnumRows(void) {
+ 
+ 	sprintf(temp, "%d", PQntuples(result));
+ 	Push(temp, LNUMBER);
+-#else
+-	Pop();
+-	Error("No postgres95 support");
+-#endif
+ }
+ 
+ 
+ void PGnumFields(void) {
+-#ifdef HAVE_LIBPQ
+ 	Stack		*s;
+ 	int		res_ind;
+ 	PGresult	*result;
+@@ -813,14 +769,9 @@ void PGnumFields(void) {
+ 
+ 	sprintf(temp, "%d", PQnfields(result));
+ 	Push(temp, LNUMBER);
+-#else
+-	Pop();
+-	Error("No postgres95 support");
+-#endif
+ }
+ 
+ void PGfieldName(void) {
+-#ifdef HAVE_LIBPQ
+ 	Stack		*s;
+ 	int		res_ind;
+ 	int		field_ind;
+@@ -877,15 +828,9 @@ void PGfieldName(void) {
+ 	}
+ 
+ 	Push(tmp, STRING);
+-#else
+-	Pop();
+-	Pop();
+-	Error("No postgres95 support");
+-#endif
+ }
+ 
+ void PGfieldType(void) {
+-#ifdef HAVE_LIBPQ
+ 	Stack		*s;
+ 	int		res_ind;
+ 	int		field_ind;
+@@ -951,15 +896,9 @@ void PGfieldType(void) {
+ 	}
+ 
+ 	Push(tmp, STRING);
+-#else
+-	Pop();
+-	Pop();
+-	Error("No postgres95 support");
+-#endif
+ }
+ 
+ void PGfieldNum(void) {
+-#ifdef HAVE_LIBPQ
+ 	Stack		*s;
+ 	int		res_ind;
+ 	char		*fname;
+@@ -1004,16 +943,10 @@ void PGfieldNum(void) {
+ 	sprintf(tmp, "%d", PQfnumber(result, fname));
+ 
+ 	Push(tmp, LNUMBER);
+-#else
+-	Pop();
+-	Pop();
+-	Error("No Postgres95 support");
+-#endif
+ }
+ 
+ 
+ void PGfieldPrtLen(void) {
+-#ifdef HAVE_LIBPQ
+ 	Stack		*s;
+ 	int		res_ind;
+ 	int		tuple_ind;
+@@ -1079,16 +1012,9 @@ void PGfieldPrtLen(void) {
+ 	sprintf(tmp, "%d", sz);
+ 
+ 	Push(tmp, LNUMBER);
+-#else
+-	Pop();
+-	Pop();
+-	Pop();
+-	Error("No postgres95 support");
+-#endif
+ }
+ 
+ void PGfieldSize(void) {
+-#ifdef HAVE_LIBPQ
+ 	Stack		*s;
+ 	int		res_ind;
+ 	PGresult	*result;
+@@ -1143,16 +1069,10 @@ void PGfieldSize(void) {
+ 	sprintf(tmp, "%d", sz);
+ 
+ 	Push(tmp, LNUMBER);
+-#else
+-	Pop();
+-	Pop();
+-	Error("No postgres95 support");
+-#endif
+ }
+ 
+ 
+ void PGhost(void) {
+-#ifdef HAVE_LIBPQ
+ 	Stack		*s;
+ 	int		conn_ind;
+ 	PGconn		*conn;
+@@ -1182,16 +1102,10 @@ void PGhost(void) {
+ 	}
+ 
+ 	Push(tmp, STRING);
+-
+-#else
+-	Pop();
+-	Error("No postgres95 support");
+-#endif
+ }
+ 
+ 
+ void PGdbName(void) {
+-#ifdef HAVE_LIBPQ
+ 	Stack		*s;
+ 	int		conn_ind;
+ 	PGconn		*conn;
+@@ -1221,15 +1135,9 @@ void PGdbName(void) {
+ 	}
+ 
+ 	Push(tmp, STRING);
+-
+-#else
+-	Pop();
+-	Error("No postgres95 support");
+-#endif
+ }
+ 
+ void PGoptions(void) {
+-#ifdef HAVE_LIBPQ
+ 	Stack		*s;
+ 	int		conn_ind;
+ 	PGconn		*conn;
+@@ -1259,15 +1167,9 @@ void PGoptions(void) {
+ 	}
+ 
+ 	Push(tmp, STRING);
+-
+-#else
+-	Pop();
+-	Error("No postgres95 support");
+-#endif
+ }
+ 
+ void PGport(void) {
+-#ifdef HAVE_LIBPQ
+ 	Stack		*s;
+ 	int		conn_ind;
+ 	PGconn		*conn;
+@@ -1297,15 +1199,9 @@ void PGport(void) {
+ 	}
+ 
+ 	Push(tmp, STRING);
+-
+-#else
+-	Pop();
+-	Error("No postgres95 support");
+-#endif
+ }
+ 
+ void PGtty(void) {
+-#ifdef HAVE_LIBPQ
+ 	Stack		*s;
+ 	int		conn_ind;
+ 	PGconn		*conn;
+@@ -1335,29 +1231,18 @@ void PGtty(void) {
+ 	}
+ 
+ 	Push(tmp, STRING);
+-
+-#else
+-	Pop();
+-	Error("No postgres95 support");
+-#endif
+ }
+ 
+ 
+ void PGgetlastoid(void) {
+-#ifdef HAVE_LIBPQ
+ 	char		tmp[16];
+ 
+ 	sprintf(tmp, "%d", pgLastOid);
+ 	Push(tmp, LNUMBER);
+-
+-#else
+-	Error("No postgres95 support");
+-#endif
+ }
+ 
+ 
+ void PGerrorMessage(void) {
+-#ifdef HAVE_LIBPQ
+ 	Stack		*s;
+ 	int		conn_ind;
+ 	PGconn		*conn;
+@@ -1387,9 +1272,5 @@ void PGerrorMessage(void) {
+ 	}
+ 
+ 	Push(tmp, STRING);
+-
+-#else
+-	Pop();
+-	Error("No postgres95 support");
+-#endif
+ }
++#endif
+--- a/src/php.h
++++ b/src/php.h
+@@ -901,6 +901,7 @@ void SybsqlExit(void);
+ void SybsqlCheckConnect(void);
+ 
+ /* pg95.c */
++#ifdef HAVE_LIBPQ
+ void PGcloseAll(void);
+ void PGexec(void);
+ void PG_result(void);
+@@ -924,6 +925,10 @@ void PGfieldSize(void);
+ void PGgetlastoid(void);
+ void PGerrorMessage(void);
+ void php_init_pg95(void);
++#else
++#define php_init_pg95()
++#define PGcloseAll()
++#endif
+ 
+ /* reg.c */
+ void RegMatch(char *, int);

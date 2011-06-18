@@ -1,0 +1,86 @@
+--- a/src/utils/wpa_debug.c
++++ b/src/utils/wpa_debug.c
+@@ -15,6 +15,9 @@
+ #include "includes.h"
+ 
+ #include "common.h"
++#ifndef CONFIG_NATIVE_WINDOWS
++#include <syslog.h>
++#endif /* CONFIG_NATIVE_WINDOWS */
+ 
+ 
+ #ifdef CONFIG_DEBUG_FILE
+@@ -266,6 +269,41 @@ void wpa_msg_register_cb(wpa_msg_cb_func
+ 	wpa_msg_cb = func;
+ }
+ 
++void wpa_msg_syslog_init() {
++#ifndef CONFIG_NATIVE_WINDOWS
++	openlog("wpa-supplicant", 0, LOG_DAEMON);
++#endif
++}
++
++void wpa_msg_syslog(void *ctx, int level, const char *txt, size_t len)
++{
++#ifndef CONFIG_NATIVE_WINDOWS
++	if (level >= wpa_debug_level) {
++		int priority;
++		switch (level) {
++		case HOSTAPD_LEVEL_DEBUG_VERBOSE:
++		case HOSTAPD_LEVEL_DEBUG:
++			priority = LOG_DEBUG;
++			break;
++		case HOSTAPD_LEVEL_INFO:
++			priority = LOG_INFO;
++			break;
++		case HOSTAPD_LEVEL_NOTICE:
++			priority = LOG_NOTICE;
++			break;
++		case HOSTAPD_LEVEL_WARNING:
++			priority = LOG_WARNING;
++			break;
++		default:
++			priority = LOG_INFO;
++			break;
++		}
++		syslog(priority, txt);
++	}
++#endif /* CONFIG_NATIVE_WINDOWS */
++}
++
++
+ 
+ void wpa_msg(void *ctx, int level, char *fmt, ...)
+ {
+--- a/src/utils/wpa_debug.h
++++ b/src/utils/wpa_debug.h
+@@ -142,6 +142,8 @@ void wpa_hexdump_ascii_key(int level, co
+ #ifdef CONFIG_NO_WPA_MSG
+ #define wpa_msg(args...) do { } while (0)
+ #define wpa_msg_register_cb(f) do { } while (0)
++#define wpa_msg_syslog_init() do { } while (0)
++#define wpa_msg_syslog(...)
+ #else /* CONFIG_NO_WPA_MSG */
+ /**
+  * wpa_msg - Conditional printf for default target and ctrl_iface monitors
+@@ -167,6 +169,9 @@ typedef void (*wpa_msg_cb_func)(void *ct
+  * @func: Callback function (%NULL to unregister)
+  */
+ void wpa_msg_register_cb(wpa_msg_cb_func func);
++
++void wpa_msg_syslog(void *ctx, int level, const char *txt, size_t len);
++void wpa_msg_syslog_init();
+ #endif /* CONFIG_NO_WPA_MSG */
+ 
+ 
+--- a/wpa_supplicant/wpa_supplicant.c
++++ b/wpa_supplicant/wpa_supplicant.c
+@@ -1995,6 +1995,8 @@ struct wpa_global * wpa_supplicant_init(
+ 		return NULL;
+ 
+ 	wpa_debug_open_file(params->wpa_debug_file_path);
++	wpa_msg_syslog_init();
++	wpa_msg_register_cb(wpa_msg_syslog);
+ 
+ 	ret = eap_peer_register_methods();
+ 	if (ret) {

@@ -1,0 +1,369 @@
+--- a/src/lex.c
++++ b/src/lex.c
+@@ -285,9 +285,11 @@ static const cmd_table_t cmd_table[PHP_M
+ 	  { "linkinfo",INTFUNC1,LinkInfo },
+ 	  { "closelog",INTFUNC0,CloseLog },
+ 	  { "readfile",INTFUNC1,ReadFile },	  
++#ifdef HAVE_LIBOCIC
+ 	  { "ora_open",INTFUNC1,Ora_Open },
+ 	  { "ora_exec",INTFUNC1,Ora_Exec },
+ 	  { "ora_bind",INTFUNC4,Ora_Bind },
++#endif
+ #if PHP_SNMP_SUPPORT
+ 	  { "snmpwalk", INTFUNC3,phpsnmpwalk },
+ #endif
+@@ -333,10 +335,12 @@ static const cmd_table_t cmd_table[PHP_M
+ 	  { "pg_dbname", INTFUNC1,PGdbName },
+ 	  { "setcookie", SETCOOKIE,NULL },
+ 	  { "parse_str", PARSESTR,NULL },
++#ifdef HAVE_LIBOCIC
+ 	  { "ora_logon", INTFUNC2,Ora_Logon },
+ 	  { "ora_close", INTFUNC1,Ora_Close },
+ 	  { "ora_parse", ORA_PARSE,NULL },
+ 	  { "ora_fetch", INTFUNC1,Ora_Fetch },
++#endif
+ 	  { "checkdate", INTFUNC3,CheckDate },
+ #ifdef ILLUSTRA
+ 	  { "mi_result", INTFUNC4,MIresult },
+@@ -370,8 +374,10 @@ static const cmd_table_t cmd_table[PHP_M
+ #endif
+ 	  { "solid_exec", INTFUNC2,Solid_exec },
+ 	  { "initsyslog", INTFUNC0,php_init_syslog },
++#ifdef HAVE_LIBOCIC
+ 	  { "ora_logoff", INTFUNC1,Ora_Logoff },
+ 	  { "ora_commit", INTFUNC1,Ora_Commit },
++#endif
+ #ifdef ILLUSTRA
+ 	  { "mi_connect", INTFUNC3,MIconnect },
+ 	  { "mi_numrows", INTFUNC2,MInumRows },
+@@ -447,8 +453,10 @@ static const cmd_table_t cmd_table[PHP_M
+ 	  { "sybsql_query", INTFUNC1,SybsqlQuery },
+ 	  { "sybsql_isrow", INTFUNC0,SybsqlIsRow }, 
+ 	  { "getimagesize", INTFUNC1,GetImageSize },
++#ifdef HAVE_LIBOCIC
+ 	  { "ora_commiton", INTFUNC1,Ora_CommitOn },
+ 	  { "ora_rollback", INTFUNC1,Ora_Rollback },
++#endif
+ #ifdef ILLUSTRA
+ 	  { "mi_fieldname", INTFUNC3,MIfieldName },
+ 	  { "mi_numfields", INTFUNC2,MInumFields },
+@@ -480,8 +488,10 @@ static const cmd_table_t cmd_table[PHP_M
+ 	  { "solid_numrows", INTFUNC1,Solid_numRows },
+ 	  { "solid_connect", INTFUNC3,Solid_connect },
+ 	  { "sybsql_result", INTFUNC1,SybsqlResult}, 
++#ifdef HAVE_LIBOCIC
+ 	  { "ora_commitoff", INTFUNC1,Ora_CommitOff },
+ 	  { "ora_getcolumn", INTFUNC2,Ora_GetColumn },
++#endif
+ 	  { "getallheaders", INTFUNC0,GetAllHeaders },
+ #if HAVE_LIBADABAS
+ 	  { "ada_numfields", INTFUNC1,Ada_numFields },
+--- a/src/oracle.c
++++ b/src/oracle.c
+@@ -103,10 +103,11 @@ static oraCursor ora_cursor_array[MAX_CU
+ ** PHP functions
+ */
+ 
++#if HAVE_LIBOCIC
++
+ void
+ Ora_Logon() /* userid, password */
+ {
+-#if HAVE_LIBOCIC
+ 	char userid[ORAUIDLEN+1], password[ORAPWLEN+1], sid[ORASIDLEN+1];
+ 	char retval[16];
+ 	oraConnection *conn;
+@@ -180,13 +181,6 @@ Ora_Logon() /* userid, password */
+ 	sprintf(retval, "%d", conn->ind);
+ 	Push(retval, LNUMBER);
+ 
+-#else
+-	Pop();
+-	Pop();
+-	Error("no Oracle support");
+-	Push("-1", LNUMBER);
+-#endif
+-
+ #ifdef TRACE
+ 	Error("Ora_Logon returns");
+ #endif
+@@ -196,7 +190,6 @@ Ora_Logon() /* userid, password */
+ void
+ Ora_Logoff() /* conn_index */
+ {
+-#if HAVE_LIBOCIC
+ 	int conn_ind;
+ 	oraConnection *conn;
+ 	Stack *s;
+@@ -240,12 +233,6 @@ Ora_Logoff() /* conn_index */
+ 		Push("0", LNUMBER);
+ 	}
+ 
+-#else
+-	Pop();
+-	Error("no Oracle support");
+-	Push("-1", LNUMBER);
+-#endif
+-
+ #ifdef TRACE
+ 	Error("Ora_Logoff end");
+ #endif
+@@ -255,7 +242,6 @@ Ora_Logoff() /* conn_index */
+ void
+ Ora_Open() /* conn_index */
+ {
+-#if HAVE_LIBOCIC
+ 	Stack *s;
+ 	oraConnection *conn;
+ 	oraCursor *cursor;
+@@ -300,11 +286,6 @@ Ora_Open() /* conn_index */
+ 
+ 	sprintf(retval, "%d", cursor->ind);
+ 	Push(retval, LNUMBER);
+-#else
+-	Pop();
+-	Error("no Oracle support");
+-	Push("-1", LNUMBER);
+-#endif
+ 
+ #ifdef TRACE
+ 	Error("Ora_Open end");
+@@ -315,7 +296,6 @@ Ora_Open() /* conn_index */
+ void
+ Ora_Close() /* conn_index */
+ {
+-#if HAVE_LIBOCIC
+ 	Stack *s;
+ 	oraCursor *cursor;
+ 	int cursor_ind;
+@@ -349,21 +329,14 @@ Ora_Close() /* conn_index */
+ 
+ 	ora_del_cursor(cursor->ind);
+ 	Push("0", LNUMBER);
+-#else
+-	Pop();
+-	Error("no Oracle support");
+-	Push("-1", LNUMBER);
+-#endif
+ #ifdef TRACE
+ 	Error("Ora_Close end");
+ #endif
+ }
+ 
+-
+ void
+ Ora_CommitOff() /* conn_index */
+ {
+-#if HAVE_LIBOCIC
+ 	Stack *s;
+ 	oraConnection *conn;
+ 	int conn_ind;
+@@ -394,11 +367,6 @@ Ora_CommitOff() /* conn_index */
+ 	}
+ 
+ 	Push("0", LNUMBER);
+-#else
+-	Pop();
+-	Error("no Oracle support");
+-	Push("-1", LNUMBER);
+-#endif
+ #ifdef TRACE
+ 	Error("Ora_CommitOff end");
+ #endif
+@@ -408,7 +376,6 @@ Ora_CommitOff() /* conn_index */
+ void
+ Ora_CommitOn() /* conn_index */
+ {
+-#if HAVE_LIBOCIC
+ 	Stack *s;
+ 	oraConnection *conn;
+ 	int conn_ind;
+@@ -440,11 +407,6 @@ Ora_CommitOn() /* conn_index */
+ 	}
+ 
+ 	Push("0", LNUMBER);
+-#else
+-	Pop();
+-	Error("no Oracle support");
+-	Push("-1", LNUMBER);
+-#endif
+ #ifdef TRACE
+ 	Error("Ora_CommitOn end");
+ #endif
+@@ -455,7 +417,6 @@ Ora_CommitOn() /* conn_index */
+ void
+ Ora_Commit() /* conn_index */
+ {
+-#if HAVE_LIBOCIC
+ 	Stack *s;
+ 	oraConnection *conn;
+ 	int conn_ind;
+@@ -489,11 +450,6 @@ Ora_Commit() /* conn_index */
+ 	conn->waserror = 0;
+ 
+ 	Push("0", LNUMBER);
+-#else
+-	Pop();
+-	Error("no Oracle support");
+-	Push("-1", LNUMBER);
+-#endif
+ #ifdef TRACE
+ 	Error("Ora_Commit end");
+ #endif
+@@ -503,7 +459,6 @@ Ora_Commit() /* conn_index */
+ void
+ Ora_Rollback() /* conn_index */
+ {
+-#if HAVE_LIBOCIC
+ 	Stack *s;
+ 	oraConnection *conn;
+ 	int conn_ind;
+@@ -536,16 +491,11 @@ Ora_Rollback() /* conn_index */
+ 	conn->waserror = 0;
+ 
+ 	Push("0", LNUMBER);
+-#else
+-	Pop();
+-	Error("no Oracle support");
+-	Push("-1", LNUMBER);
+-#endif
+ #ifdef TRACE
+ 	Error("Ora_Rollback end");
+ #endif
+ }
+-
++#endif
+ 
+ void
+ Ora_Parse(int flag) /* cursor_index, sql_statement [, defer] */
+@@ -642,6 +592,8 @@ Ora_Parse(int flag) /* cursor_index, sql
+ #endif
+ }
+ 
++#if HAVE_LIBOCIC
++
+ /* Returns the number of SELECT-list items for a select, number of
+ ** affected rows for UPDATE/INSERT/DELETE, 0 for another successful
+ ** statement or -1 on error.
+@@ -649,7 +601,6 @@ Ora_Parse(int flag) /* cursor_index, sql
+ void
+ Ora_Exec() /* cursor_index */
+ {
+-#if HAVE_LIBOCIC
+ 	Stack *s;
+ 	oraCursor *cursor;
+ 	oraConnection *conn;
+@@ -718,11 +669,6 @@ Ora_Exec() /* cursor_index */
+ 
+ 	sprintf(retval, "%d", ncol);
+ 	Push(retval, LNUMBER);
+-#else
+-	Pop();
+-	Error("no Oracle support");
+-	Push("-1", LNUMBER);
+-#endif
+ #ifdef TRACE
+ 	Error("Ora_Exec end");
+ #endif
+@@ -732,7 +678,6 @@ Ora_Exec() /* cursor_index */
+ void
+ Ora_Fetch() /* cursor_index */
+ {
+-#if HAVE_LIBOCIC
+ 	Stack *s;
+ 	int cursor_ind;
+ 	oraCursor *cursor;
+@@ -773,11 +718,6 @@ Ora_Fetch() /* cursor_index */
+ 	cursor->curr_column = cursor->column_top;
+ 
+ 	Push("1", LNUMBER);
+-#else
+-	Pop();
+-	Error("no Oracle support");
+-	Push("-1", LNUMBER);
+-#endif
+ #ifdef TRACE
+ 	Error("Ora_Fetch end");
+ #endif
+@@ -787,7 +727,6 @@ Ora_Fetch() /* cursor_index */
+ void
+ Ora_GetColumn() /* cursor_index, column_index */
+ {
+-#if HAVE_LIBOCIC
+ 	Stack *s;
+ 	int cursor_ind, column_ind;
+ 	oraCursor *cursor;
+@@ -908,11 +847,6 @@ Ora_GetColumn() /* cursor_index, column_
+ 		Push("-1", LNUMBER);
+ 		return;
+ 	}
+-#else
+-	Pop();
+-	Error("no Oracle support");
+-	Push("-1", LNUMBER);
+-#endif
+ #ifdef TRACE
+ 	Error("Ora_GetColumn end");
+ #endif
+@@ -922,7 +856,6 @@ Ora_GetColumn() /* cursor_index, column_
+ void
+ Ora_Bind(void) /* cursor_index, php_var_name, sql_var_name, var_len */
+ {
+-#if HAVE_LIBOCIC
+ 	Stack        *s;
+ 	oraCursor    *cursor;
+ 	VarTree      *php_var;
+@@ -1022,14 +955,6 @@ Ora_Bind(void) /* cursor_index, php_var_
+ 	}           
+ 
+ 	Push("0", LNUMBER); /* Bind successfully */
+-#else
+-	Pop();
+-	Pop();
+-	Pop();
+-	Pop();
+-	Error("no Oracle support");
+-	Push("-1", LNUMBER);
+-#endif
+ }
+ 
+ 
+@@ -1038,7 +963,6 @@ Ora_Bind(void) /* cursor_index, php_var_
+ void
+ OraCloseAll(void)
+ {
+-#if HAVE_LIBOCIC
+ 	int i;
+ 	oraConnection *conn;
+       
+@@ -1048,8 +972,8 @@ OraCloseAll(void)
+ 			do_logoff(ora_conn_array+i);
+ 		}
+ 	}
+-#endif
+ }
++#endif
+ 
+ #if HAVE_LIBOCIC
+ 
+--- a/src/php.h
++++ b/src/php.h
+@@ -1304,6 +1304,7 @@ void phpsnmp(int);
+ #endif
+ 
+ /* oracle.c */
++#ifdef HAVE_LIBOCIC
+ void Ora_Close(void);
+ void Ora_Commit(void);
+ void Ora_CommitOff(void);
+@@ -1319,6 +1320,10 @@ void Ora_Rollback(void);
+ void Ora_Bind(void);
+ void php_init_oracle(void);
+ void OraCloseAll(void);
++#else
++#define php_init_oracle()
++#define OraCloseAll()
++#endif
+ 
+ /* filepro.c */
+ void filePro(void);

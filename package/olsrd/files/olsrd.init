@@ -1,0 +1,15 @@
+plugin_start() {
+  rm /etc/olsrd.conf
+  if [ -f /etc/persistent/olsrd.conf ]; then
+    ln -s /etc/persistent/olsrd.conf /etc/olsrd.conf
+  else
+    ln -s /usr/etc/olsrd.conf /etc/olsrd.conf
+  fi
+  true
+}
+plugin_stop() {
+  kill `pidof olsrd`
+  rm /etc/olsrd.conf
+  true
+}
+

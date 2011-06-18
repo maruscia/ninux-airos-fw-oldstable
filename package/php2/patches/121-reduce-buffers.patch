@@ -1,0 +1,26 @@
+--- a/src/php.h
++++ b/src/php.h
+@@ -267,12 +267,12 @@ extern request_rec *php_rqst;
+ /*
+  * Max size of a single line of input in the HTML files
+  */
+-#define LINEBUFSIZE	4096
++#define LINEBUFSIZE     512
+ 
+ /*
+  * Input buffer size for Exec() commands
+  */
+-#define EXEC_INPUT_BUF 4096
++#define EXEC_INPUT_BUF 512
+ 
+ /*
+  * ECHO_BUF sets the size of the echo overflow buffer
+@@ -288,7 +288,7 @@ extern request_rec *php_rqst;
+  * In the Apache module version, this can be overwritten by the
+  * phpMaxDataSpace Apache configuration directive.
+  */
+-#define DEFAULT_MAX_DATA_SPACE 4096
++#define DEFAULT_MAX_DATA_SPACE 1024
+ 
+ /*
+  * PHP_TRACK_VARS

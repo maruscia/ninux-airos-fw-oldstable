@@ -1,0 +1,3 @@
+QUILT_DIFF_ARGS="--color=auto --minimal --speed-large-files"
+QUILT_REFRESH_ARGS="--sort --no-timestamps"
+QUILT_NO_DIFF_TIMESTAMP="yes"

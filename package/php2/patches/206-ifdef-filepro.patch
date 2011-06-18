@@ -1,0 +1,164 @@
+--- a/src/filepro.c
++++ b/src/filepro.c
+@@ -47,7 +47,7 @@ static signed int fp_keysize = -1;			/* 
+ static FP_FIELD *fp_fieldlist = NULL;		/* List of fields */
+ #endif
+ 
+-
++#ifdef HAVE_FILEPRO
+ /*
+  * LNUMBER filePro(STRING directory)
+  * 
+@@ -58,7 +58,6 @@ static FP_FIELD *fp_fieldlist = NULL;		/
+  */
+ void filePro(void)
+ {
+-#ifdef HAVE_FILEPRO
+ 	FILE *fp;
+ 	Stack *st;
+ 	char workbuf[256]; /* FIX - should really be the max filename length */
+@@ -130,10 +129,6 @@ void filePro(void)
+ 		
+ 	fp_database = estrdup(0, st->strval);
+ 	Push("1", LNUMBER);
+-#else
+-	Push("0", LNUMBER);
+-	Error("No filePro support");
+-#endif
+ 	return;
+ }
+ 
+@@ -149,7 +144,6 @@ void filePro(void)
+  */
+ void filePro_rowcount(void)
+ {
+-#ifdef HAVE_FILEPRO
+ 	FILE *fp;
+ 	char workbuf[256]; /* FIX - should really be the max filename length */
+ 	char readbuf[256];
+@@ -181,10 +175,6 @@ void filePro_rowcount(void)
+ 	
+ 	sprintf(workbuf, "%d", records);
+ 	Push(workbuf, LNUMBER);
+-#else
+-	Push("-1", LNUMBER);
+-	Error("No filePro support");
+-#endif
+ 	return;
+ }
+ 
+@@ -196,7 +186,6 @@ void filePro_rowcount(void)
+  */
+ void filePro_fieldname(void)
+ {
+-#ifdef HAVE_FILEPRO
+ 	Stack *st;
+ 	int i;
+ 	FP_FIELD *lp;
+@@ -221,10 +210,6 @@ void filePro_fieldname(void)
+ 	}
+ 	Error("filePro: unable to locate field number %d.\n", st->intval);
+ 	Push("", STRING);
+-#else
+-	Push("", STRING);
+-	Error("No filePro support");
+-#endif
+ 	return;
+ }
+ 
+@@ -236,7 +221,6 @@ void filePro_fieldname(void)
+  */
+ void filePro_fieldtype(void)
+ {
+-#ifdef HAVE_FILEPRO
+ 	Stack *st;
+ 	int i;
+ 	FP_FIELD *lp;
+@@ -261,10 +245,6 @@ void filePro_fieldtype(void)
+ 	}
+ 	Error("filePro: unable to locate field number %d.\n", st->intval);
+ 	Push("", STRING);
+-#else
+-	Push("", STRING);
+-	Error("No filePro support");
+-#endif
+ 	return;
+ }
+ 
+@@ -276,7 +256,6 @@ void filePro_fieldtype(void)
+  */
+ void filePro_fieldwidth(void)
+ {
+-#ifdef HAVE_FILEPRO
+ 	Stack *st;
+ 	int i;
+ 	FP_FIELD *lp;
+@@ -303,10 +282,6 @@ void filePro_fieldwidth(void)
+ 	}
+ 	Error("filePro: unable to locate field number %d.\n", st->intval);
+ 	Push("-1", LNUMBER);
+-#else
+-	Push("-1", LNUMBER);
+-	Error("No filePro support");
+-#endif
+ 	return;
+ }
+ 
+@@ -318,7 +293,6 @@ void filePro_fieldwidth(void)
+  */
+ void filePro_fieldcount(void)
+ {
+-#ifdef HAVE_FILEPRO
+ 	char workbuf[256];
+ 	
+ 	if (!fp_database) {
+@@ -330,10 +304,6 @@ void filePro_fieldcount(void)
+ 	/* Read in the first line from the map file */
+ 	sprintf(workbuf, "%d", fp_fcount);
+ 	Push(workbuf, LNUMBER);
+-#else
+-	Push("-1", LNUMBER);
+-	Error("No filePro support");
+-#endif
+ 	return;
+ }
+ 
+@@ -345,7 +315,6 @@ void filePro_fieldcount(void)
+  */
+ void filePro_retrieve(void)
+ {
+-#ifdef HAVE_FILEPRO
+     Stack *st;
+     FILE *fp;
+     char workbuf[256], readbuf[1024]; /* FIX - Work out better buffering! */
+@@ -398,10 +367,7 @@ void filePro_retrieve(void)
+     readbuf[lp->width] = '\0';
+ 	Push(readbuf, STRING);
+     fclose(fp);
+-#else
+-	Push("-1", LNUMBER);
+-	Error("No filePro support");
+-#endif
+ 	return;
+ }
++#endif
+ 
+--- a/src/php.h
++++ b/src/php.h
+@@ -1331,6 +1331,7 @@ void OraCloseAll(void);
+ #endif
+ 
+ /* filepro.c */
++#ifdef HAVE_FILEPRO
+ void filePro(void);
+ void filePro_rowcount(void);
+ void filePro_fieldcount(void);
+@@ -1338,6 +1339,8 @@ void filePro_fieldtype(void);
+ void filePro_fieldname(void);
+ void filePro_fieldwidth(void);
+ void filePro_retrieve(void);
++#else
++#endif
+ 
+ /* illustra.c */
+ #ifdef ILLUSTRA

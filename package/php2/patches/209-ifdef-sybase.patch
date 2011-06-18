@@ -1,0 +1,509 @@
+--- a/src/lex.c
++++ b/src/lex.c
+@@ -427,8 +427,10 @@ static const cmd_table_t cmd_table[PHP_M
+ #ifdef HAVE_LIBSOLID
+ 	  { "solid_close", INTFUNC1,Solid_close },
+ #endif
++#ifdef HAVE_SYBASE
+ 	  { "sybsql_seek",INTFUNC1,SybsqlSeek},
+ 	  { "sybsql_exit",INTFUNC0,SybsqlExit},
++#endif
+ #ifdef ILLUSTRA
+ 	  { "mi_fieldnum", INTFUNC3,MIfieldNum },
+ #endif
+@@ -469,9 +471,11 @@ static const cmd_table_t cmd_table[PHP_M
+ #ifdef HAVE_LIBSOLID
+ 	  { "solid_result", INTFUNC2,Solid_result },
+ #endif
++#ifdef HAVE_SYBASE
+ 	  { "sybsql_dbuse", INTFUNC1,SybsqlDbuse },
+ 	  { "sybsql_query", INTFUNC1,SybsqlQuery },
+ 	  { "sybsql_isrow", INTFUNC0,SybsqlIsRow }, 
++#endif
+ 	  { "getimagesize", INTFUNC1,GetImageSize },
+ #ifdef HAVE_LIBOCIC
+ 	  { "ora_commiton", INTFUNC1,Ora_CommitOn },
+@@ -511,7 +515,9 @@ static const cmd_table_t cmd_table[PHP_M
+ 	  { "solid_numrows", INTFUNC1,Solid_numRows },
+ 	  { "solid_connect", INTFUNC3,Solid_connect },
+ #endif
++#ifdef HAVE_SYBASE
+ 	  { "sybsql_result", INTFUNC1,SybsqlResult}, 
++#endif
+ #ifdef HAVE_LIBOCIC
+ 	  { "ora_commitoff", INTFUNC1,Ora_CommitOff },
+ 	  { "ora_getcolumn", INTFUNC2,Ora_GetColumn },
+@@ -555,9 +561,11 @@ static const cmd_table_t cmd_table[PHP_M
+ #ifdef HAVE_LIBMSQL
+ 	  { "msql_listindex", INTFUNC3,MsqlListIndex },
+ #endif
++#ifdef HAVE_SYBASE
+ 	  { "sybsql_connect", INTFUNC0,SybsqlConnect }, 
+ 	  { "sybsql_nextrow", INTFUNC0,SybsqlNextRow },
+ 	  { "sybsql_numrows", INTFUNC0,SybsqlNumRows},
++#endif
+ 	  { "clearstatcache", INTFUNC0,ClearStatCache},
+ #if HAVE_LIBADABAS
+ 	  { "ada_freeresult", INTFUNC1,Ada_freeResult },
+@@ -586,7 +594,9 @@ static const cmd_table_t cmd_table[PHP_M
+ 	  { "solid_numfields", INTFUNC1,Solid_numFields },
+ 	  { "solid_fieldname", INTFUNC2,Solid_fieldName },
+ #endif
++#ifdef HAVE_SYBASE
+ 	  { "sybsql_getfield", INTFUNC1,SybsqlGetField},
++#endif
+ 	  { NULL,0,NULL } },
+ 
+ 	{ { "htmlspecialchars", INTFUNC1,HtmlSpecialChars }, /* 16 */
+@@ -600,8 +610,10 @@ static const cmd_table_t cmd_table[PHP_M
+ #ifdef HAVE_LIBSOLID
+ 	  { "solid_freeresult", INTFUNC1,Solid_freeResult },
+ #endif
++#ifdef HAVE_SYBASE
+ 	  { "sybsql_numfields", INTFUNC0,SybsqlNumFields},
+ 	  { "sybsql_fieldname", INTFUNC1,SybsqlFieldName},
++#endif
+ #if HAVE_FILEPRO
+ 	  { "filepro_rowcount", INTFUNC0,filePro_rowcount},
+ 	  { "filepro_retrieve", INTFUNC2,filePro_retrieve},
+@@ -610,7 +622,9 @@ static const cmd_table_t cmd_table[PHP_M
+ 
+ 	{ { "imagefilltoborder", INTFUNC5,ImageFillToBorder }, /* 17 */
+ 	  { "seterrorreporting", INTFUNC1,SetErrorReporting }, 
++#ifdef HAVE_SYBASE
+ 	  { "sybsql_result_all", INTFUNC0,SybsqlResultAll },
++#endif
+ #if HAVE_FILEPRO
+ 	  { "filepro_fieldtype", INTFUNC1,filePro_fieldtype},
+ 	  { "filepro_fieldname", INTFUNC1,filePro_fieldname},
+@@ -630,7 +644,9 @@ static const cmd_table_t cmd_table[PHP_M
+ #ifdef HAVE_LIBMYSQL
+ 	  { "mysql_affected_rows", INTFUNC0, MYsqlAffectedRows }, /* 19 */
+ #endif
++#ifdef HAVE_SYBASE
+ 	  { "sybsql_checkconnect", INTFUNC0, SybsqlCheckConnect }, /* 19 */
++#endif
+ 	  { NULL,0,NULL } },
+ 
+ 	{ { "imagefilledrectangle", INTFUNC6,ImageFilledRectangle }, /* 20 */
+--- a/src/php.h
++++ b/src/php.h
+@@ -884,6 +884,7 @@ void php_init_msql(char *);
+ #endif
+ 
+ /* sybsql.c */  /*muquit, # ma_muquit@fccc.edu, Sep-15-96 */
++#ifdef HAVE_SYBASE
+ void SybsqlConnect(void);
+ void SybsqlDbuse(void);
+ void SybsqlQuery(void);
+@@ -899,6 +900,9 @@ void SybsqlResultAll(void);
+ void SybsqlGetField(void);
+ void SybsqlExit(void);
+ void SybsqlCheckConnect(void);
++#else
++#define SybsqlExit()
++#endif
+ 
+ /* pg95.c */
+ #ifdef HAVE_LIBPQ
+--- a/src/sybsql.c
++++ b/src/sybsql.c
+@@ -118,15 +118,15 @@ static char
+ static char
+     *col2char(int);
+ #endif /* } */
++
++#ifdef HAVE_SYBASE
+ /*
+ ** initialize sybase related stuff
+ */
+ void php_init_sybsql(void)
+ {
+-#ifdef HAVE_SYBASE
+     dbproc=(DBPROCESS *) NULL;
+     bitbucket=(FILE *) NULL;
+-#endif
+ }
+ 
+ 
+@@ -188,8 +188,6 @@ void php_init_sybsql(void)
+ 
+ void SybsqlConnect(void)
+ {
+-#ifdef HAVE_SYBASE
+-
+     RETCODE
+         rc;
+     char
+@@ -228,10 +226,6 @@ void SybsqlConnect(void)
+     ** succeeded, push 1 to stack
+     */
+     Push("1",LNUMBER);
+-#else
+-    Push("0",LNUMBER);
+-    Error("no Sybase support");
+-#endif
+ }
+ 
+ 
+@@ -303,8 +297,6 @@ void SybsqlConnect(void)
+  */
+ 
+ 
+-#ifdef HAVE_SYBASE
+-
+ static DBPROCESS *MdbInit(
+     char *appname,      /* name of the app to register with sybase server */
+     char *user,         /* connect as user */
+@@ -518,7 +510,6 @@ static int MdberrHandler (DBPROCESS *dbp
+ }
+       
+ 
+-#endif /* HAVE_SYBASE */
+ 
+ 
+ /*
+@@ -565,7 +556,6 @@ static int MdberrHandler (DBPROCESS *dbp
+ 
+ void SybsqlDbuse(void)
+ {
+-#ifdef HAVE_SYBASE
+     Stack
+         *s;
+ 
+@@ -609,11 +599,6 @@ void SybsqlDbuse(void)
+         return;
+     }
+     Push("1",LNUMBER);
+-
+-#else
+-    Push("0",LNUMBER);
+-    Error("No Sybase support");
+-#endif
+ }
+ 
+ /*
+@@ -662,7 +647,6 @@ void SybsqlDbuse(void)
+ 
+ void SybsqlQuery(void)
+ {
+-#ifdef HAVE_SYBASE
+     Stack
+         *s;
+ 
+@@ -702,16 +686,11 @@ void SybsqlQuery(void)
+         return;
+     }
+     Push("1",LNUMBER);
+-#else
+-    Push("0",LNUMBER);
+-    Error("No sybase support");
+-#endif
+ }
+ 
+ /*
+ ** checks if a connecton to sybase server is establised. 
+ */
+-#ifdef HAVE_SYBASE
+ static void CheckConnection(void)
+ {
+     if (dbproc == (DBPROCESS *) NULL)
+@@ -721,16 +700,13 @@ static void CheckConnection(void)
+     }
+ return;
+ }
+-#endif
+ 
+ /* public version */
+ void SybsqlCheckConnect(void) {
+-#ifdef HAVE_SYBASE
+     if (dbproc == (DBPROCESS *) NULL)
+ 		Push("0",LNUMBER);
+ 	else
+ 		Push("1",LNUMBER);
+-#endif
+ }
+ 
+ /*
+@@ -771,7 +747,6 @@ void SybsqlCheckConnect(void) {
+  *      MA_Muquit@fccc.edu   Sep-16-96  first cut
+  */
+ 
+-#ifdef HAVE_SYBASE
+ static int SubmitQuery(char *query)
+ {
+     RETCODE
+@@ -801,7 +776,6 @@ static int SubmitQuery(char *query)
+ return (n);
+     return (0);
+ }
+-#endif
+ 
+ /*
+  *  SybsqlIsRow - indicates if currect sql command returned any rows
+@@ -851,8 +825,6 @@ return (n);
+ 
+ void SybsqlIsRow(void)
+ {
+-#ifdef HAVE_SYBASE
+-    
+     RETCODE
+         nrows;
+ 
+@@ -872,10 +844,6 @@ void SybsqlIsRow(void)
+         Push("0",LNUMBER);
+         return;
+     }
+-#else
+-    Push("0",LNUMBER);
+-    Error("No sybase support");
+-#endif
+ }
+ 
+ 
+@@ -921,7 +889,6 @@ void SybsqlIsRow(void)
+ 
+ void SybsqlPrintArow(void)
+ {
+-#ifdef HAVE_SYBASE
+     Stack
+         *s;
+ 
+@@ -947,9 +914,6 @@ void SybsqlPrintArow(void)
+     
+     val=SubstSybCol(format);
+     Echo(val,0);
+-#else
+-    Error("no sybase support");
+-#endif
+ }
+ 
+ /*
+@@ -1004,7 +968,6 @@ void SybsqlPrintArow(void)
+ 
+ void SybsqlNextRow(void)
+ {
+-#ifdef HAVE_SYBASE
+     STATUS
+         st;
+     /*
+@@ -1031,10 +994,6 @@ void SybsqlNextRow(void)
+             break;
+         }
+     }
+-#else
+-    Push("0",LNUMBER);
+-    Error("No sybase support");
+-#endif
+ }
+ 
+ 
+@@ -1080,11 +1039,6 @@ void SybsqlNextRow(void)
+  *      who                  when       why
+  *      MA_Muquit@fccc.edu   Sep-18-96  first cut
+  */
+-
+-
+-
+-
+-#ifdef HAVE_SYBASE
+ static char *SubstSybCol(char *str)
+ {
+     register char
+@@ -1191,9 +1145,6 @@ static char *SubstSybCol(char *str)
+     }
+ return (buf);
+ }
+-#endif
+-
+-
+ 
+ /*
+  *  col2char - converts any column data to an array of char
+@@ -1235,7 +1186,6 @@ return (buf);
+  *      MA_Muquit@fccc.edu   Sep-18-96  first cut
+  */
+ 
+-#ifdef HAVE_SYBASE
+ static char *col2char(int j)
+ {
+     if (dbdatlen(dbproc,j) == 0)    /* data has null value */
+@@ -1287,7 +1237,6 @@ static char *col2char(int j)
+         }
+     }
+ }
+-#endif
+ 
+ 
+ /*
+@@ -1330,7 +1279,6 @@ static char *col2char(int j)
+  *      MA_Muquit@fccc.edu   Sep-18-96  first cut
+  */
+ 
+-#ifdef HAVE_SYBASE
+ static char *aprintf(char *format,...)
+ {
+     va_list
+@@ -1354,7 +1302,6 @@ static char *aprintf(char *format,...)
+     vsprintf(buf,format,args);
+     return (buf);   
+ }
+-#endif
+ 
+ 
+ /*
+@@ -1405,7 +1352,6 @@ static char *aprintf(char *format,...)
+ 
+ void SybsqlNumRows(void)
+ {
+-#ifdef HAVE_SYBASE
+     Stack
+         *s;
+ 
+@@ -1441,10 +1387,6 @@ void SybsqlNumRows(void)
+     /*
+     ** point back to the first row
+     */
+-#else
+-    Push("0",LNUMBER);
+-    Error("No sybase support");
+-#endif
+ }
+ 
+ 
+@@ -1490,11 +1432,7 @@ void SybsqlNumRows(void)
+ 
+ void SybsqlPrintAllRows(void)
+ {
+-#ifdef HAVE_SYBASE
+     Echo("Not implementd yet",0);
+-#else
+-    Error("No sybase support");
+-#endif
+ } 
+ 
+ 
+@@ -1543,7 +1481,6 @@ void SybsqlPrintAllRows(void)
+ 
+ void SybsqlResult(void)
+ {
+-#ifdef HAVE_SYBASE
+     Stack
+         *s;
+ 
+@@ -1579,10 +1516,6 @@ void SybsqlResult(void)
+         val=SubstSybCol(format);
+         Echo(val,0);
+     }
+-
+-#else
+-    Error("No sybase suport");
+-#endif
+ }
+ 
+ 
+@@ -1630,7 +1563,6 @@ void SybsqlResult(void)
+ 
+ void SybsqlSeek(void)
+ {
+-#ifdef HAVE_SYBASE
+     Stack
+         *s;
+     DBINT
+@@ -1690,11 +1622,6 @@ void SybsqlSeek(void)
+         Error("Row number can not be negative");
+         return;
+     }
+-    
+-    
+-#else
+-    Error("No sybase support");
+-#endif
+ }
+ 
+ 
+@@ -1740,7 +1667,6 @@ void SybsqlSeek(void)
+ 
+ void SybsqlNumFields(void)
+ {
+-#ifdef HAVE_SYBASE
+     int
+         ncols;
+     char
+@@ -1753,10 +1679,6 @@ void SybsqlNumFields(void)
+     ncols=dbnumcols(dbproc);    
+     (void) sprintf(buf,"%d",ncols);
+     Push(buf,LNUMBER);
+-#else
+-    Push("0",LNUMBER);
+-    Error("No sybase support");
+-#endif
+ }
+ 
+ 
+@@ -1803,7 +1725,6 @@ void SybsqlNumFields(void)
+ 
+ void SybsqlFieldName(void)
+ {
+-#ifdef HAVE_SYBASE
+     Stack
+         *s;
+ 
+@@ -1846,10 +1767,6 @@ void SybsqlFieldName(void)
+         Error("Column number can not be negative");
+         return;
+     }
+-#else
+-    Push("",STRING);
+-    Error("no sybase support");
+-#endif
+ }
+ 
+ 
+@@ -1895,7 +1812,6 @@ void SybsqlFieldName(void)
+ 
+ void SybsqlResultAll(void)
+ {
+-#ifdef HAVE_SYBASE
+     int
+         i,
+         ncols;
+@@ -1980,9 +1896,6 @@ void SybsqlResultAll(void)
+     (void) fprintf (stdout,"</table>\n");
+     */
+     Echo("</table>\n",0);
+-#else
+-    Error("No sybase support");
+-#endif
+ }
+ 
+ 
+@@ -2033,7 +1946,6 @@ void SybsqlResultAll(void)
+ 
+ void SybsqlGetField(void)
+ {
+-#ifdef HAVE_SYBASE
+     Stack
+         *s;
+ 
+@@ -2063,18 +1975,14 @@ void SybsqlGetField(void)
+     }
+     val=SubstSybCol(format);
+     Push(val,STRING);
+-
+-#else
+-    Error("No sybase support");
+-#endif
+ }
+ 
+ void SybsqlExit (void)
+ {
+-#ifdef HAVE_SYBASE
+ 	if(dbproc) {
+ 		dbclose(dbproc);
+ 		dbproc=NULL;
+ 	}
+-#endif
+ }
++
++#endif /* HAVE_SYBASE */

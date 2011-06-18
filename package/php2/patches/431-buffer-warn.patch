@@ -1,0 +1,85 @@
+--- a/src/buffer.c
++++ b/src/buffer.c
+@@ -230,7 +230,7 @@ int buffer_write(struct buffer* b, const
+ 
+ 		/* sanity check */
+ 		if (&chunk->list == &b->bd) {
+-			warn("wbd is HEAD!\n");
++			DBG_WARN( "buffer_write: wbd is HEAD!\n");
+ 			return -1;
+ 		}
+ 	
+@@ -291,50 +291,6 @@ int buffer_writestr(struct buffer* buffe
+ 	return buffer_write(buffer, str, strlen(str));
+ }
+ 
+-#if 0
+-int buffer_send(struct buffer* b, struct http_request* rq) 
+-{
+-	struct buffer_data* rbd=b->rbd; 
+-	int nsent = 0;	/* bytes successfully sent */
+-	int ndata = 0;	/* total bytes sent counter */
+-
+-	do {
+-		size_t nleft;
+-		if (&rbd->list == &b->bd) {
+-			warn("rbd is HEAD!\n");
+-			return -1;
+-		}
+-
+-		if (rbd->nread == rbd->capacity) {
+-			rbd = buffer_data_next(rbd);
+-			b->rbd = rbd;
+-		}
+-
+-		nleft = rbd->size - rbd->nread;
+-		// debug("nleft: %d, nread: %d\n", nleft, rbd->nread);
+-		nsent = rq->io->send(rq, rbd->data+rbd->nread, nleft);
+-		if (nsent > 0) {
+-			b->size -= nleft;
+-			rbd->nread += nleft;
+-			ndata += nleft;
+-		} else if (nsent == 0) {
+-			return ndata;
+-		} else {
+-			if (errno == EINTR) continue;
+-			if (errno == EAGAIN) return -1;
+-			return -1;	
+-		}
+-	} while (nsent > 0 && b->size > 0);
+-
+-	if (buffer_shrink(b)) {
+-		return -1;	
+-	}
+-
+-	return ndata;
+-}
+-
+-#endif
+-
+ /**
+  * Retrieves data from buffer. 
+  *
+@@ -357,7 +313,7 @@ int buffer_read(struct buffer* b, void* 
+ 	while (ndata > nread) {
+ 		size_t left_data, left_capacity, left;
+ 		if (&rbd->list == &b->bd) {
+-			warn("rbd is HEAD!\n");
++			DBG_WARN("buffer_read: rbd is HEAD!\n");
+ 			return -1;
+ 		}
+ 
+--- a/src/buffer.h
++++ b/src/buffer.h
+@@ -4,6 +4,11 @@
+ #include <sys/types.h>
+ #include "list.h"
+ 
++/* If you need to get some real output - redefine like this: */
++/* #define DBG_ERROR(...) fprintf (stderr, __VA_ARGS__) */
++#define DBG_ERROR(...)
++#define DBG_WARN(...)
++
+ #define BUFFER_CHUNK_SIZE 		512
+ #define BUFFER_INITIAL_CHUNK_SIZE 	(BUFFER_CHUNK_SIZE*4)
+ 

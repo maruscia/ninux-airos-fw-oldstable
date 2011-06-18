@@ -1,0 +1,103 @@
+--- a/src/crypt.c
++++ b/src/crypt.c
+@@ -32,6 +32,11 @@
+ #else
+ #include <time.h>
+ #endif
++#ifdef HAVE_PWD_H
++#include <pwd.h>
++#endif
++#include <string.h>
++#include <errno.h>
+ #include "parse.h"
+ 
+ /*
+@@ -74,3 +79,68 @@ void Crypt(int mode) {
+ 	Error("No crypt support compiled into this version");
+ #endif
+ }	
++
++static const char MINUS_ONE[] = "-1";
++static const char STR_TRUE[] = "1";
++static const char STR_FALSE[] = "0";
++#define PushC(a,b) Push((char*)(a), (b))
++
++void PasswdAuth(void) {
++	Stack *s;
++	char password[64];
++	char* enc;
++	struct passwd* pwdentry;
++
++	s = Pop();
++	if (!s) {
++		Error("Stack Error in %s", __func__);
++		PushC(MINUS_ONE, LNUMBER);
++		return;
++	}
++	if (!(s->strval)) {
++		PushC(MINUS_ONE, LNUMBER);
++		return;
++	}
++	memset(password, 0, sizeof(password));
++	StripSlashes(s->strval);
++	strncpy(password, s->strval, sizeof(password) - 1);
++	s = Pop();
++	if (!s) {
++		Error("Stack Error in %s", __func__);
++		PushC(MINUS_ONE, LNUMBER);
++		return;
++	}
++	if (!*(s->strval)) {
++		PushC(MINUS_ONE, LNUMBER);
++		return;
++	}
++	StripSlashes(s->strval);
++	pwdentry = getpwnam(s->strval);
++	if (pwdentry == NULL || !pwdentry->pw_passwd) {
++		PushC(STR_FALSE, LNUMBER);
++		return;
++	}
++	/* deny disabled accounts */
++	if (pwdentry->pw_passwd[0] == '!' ||
++		pwdentry->pw_passwd[0] == '*') {
++		PushC(STR_FALSE, LNUMBER);
++		return;
++	}
++	/* don't check empty password */
++	if (!pwdentry->pw_passwd[0]) {
++		PushC(STR_TRUE, LNUMBER);
++		return;
++	}
++	/* TODO: if password is 'x' - handle shadow? */
++	enc = (char *)crypt(password, pwdentry->pw_passwd);
++	if (enc == NULL) {
++		PushC(STR_FALSE, LNUMBER);
++		return;
++	}
++
++	if (strcmp(enc, pwdentry->pw_passwd) == 0) {
++		PushC(STR_TRUE, LNUMBER);
++	} else {
++		PushC(STR_FALSE, LNUMBER);
++	}
++}
+--- a/src/lex.c
++++ b/src/lex.c
+@@ -385,6 +385,7 @@ static const cmd_table_t cmd_table[PHP_M
+ 	  { "getlastmod", INTFUNC0,GetLastMod },
+ 	  { "getmyinode", INTFUNC0,GetMyInode },
+ 	  { "getrandmax", INTFUNC0,GetRandMax },
++	  { "passwdauth", INTFUNC2, PasswdAuth },
+ 	  { "setlogging", INTFUNC1,SetLogging },
+ #ifdef HAVE_LIBPQ
+ 	  { "pg_numrows", INTFUNC1,PGnumRows },
+--- a/src/php.h
++++ b/src/php.h
+@@ -1038,6 +1038,7 @@ void FPassThru(void);
+ 
+ /* crypt.c */
+ void Crypt(int);
++void PasswdAuth(void);
+ 
+ /* head.c */
+ void Header(void);

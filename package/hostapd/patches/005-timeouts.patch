@@ -1,0 +1,14 @@
+--- a/hostapd/wpa.c
++++ b/hostapd/wpa.c
+@@ -47,9 +47,9 @@ static void wpa_request_new_ptk(struct w
+ 
+ /* Default timeouts are 100 ms, but this seems to be a bit too fast for most
+  * WPA Supplicants, so use a bit longer timeout. */
+-static const u32 dot11RSNAConfigGroupUpdateTimeOut = 1000; /* ms */
++static const u32 dot11RSNAConfigGroupUpdateTimeOut = 1200; /* ms */
+ static const u32 dot11RSNAConfigGroupUpdateCount = 3;
+-static const u32 dot11RSNAConfigPairwiseUpdateTimeOut = 1000; /* ms */
++static const u32 dot11RSNAConfigPairwiseUpdateTimeOut = 2000; /* ms */
+ static const u32 dot11RSNAConfigPairwiseUpdateCount = 3;
+ 
+ /* TODO: make these configurable */

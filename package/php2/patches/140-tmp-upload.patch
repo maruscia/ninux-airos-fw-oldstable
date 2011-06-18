@@ -1,0 +1,11 @@
+--- a/src/php.h
++++ b/src/php.h
+@@ -165,7 +165,7 @@ extern request_rec *php_rqst;
+  * NOTE: For Apache module, set this via phpUploadTmpDir configuration
+  *       directive.
+  */
+-/* #define UPLOAD_TMPDIR "/tmp" */
++#define UPLOAD_TMPDIR "/tmp/upload"
+ 
+ /*
+  * If no matter what you do, you cannot get it to accept your ?config

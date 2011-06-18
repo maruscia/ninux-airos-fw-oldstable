@@ -1,0 +1,143 @@
+--- a/src/rsn_supp/wpa.c
++++ b/src/rsn_supp/wpa.c
+@@ -451,7 +451,6 @@ static void wpa_supplicant_key_neg_compl
+ 		MACSTR " [PTK=%s GTK=%s]", MAC2STR(addr),
+ 		wpa_cipher_txt(sm->pairwise_cipher),
+ 		wpa_cipher_txt(sm->group_cipher));
+-	wpa_sm_cancel_scan(sm);
+ 	wpa_sm_cancel_auth_timeout(sm);
+ 	wpa_sm_set_state(sm, WPA_COMPLETED);
+ 
+@@ -783,7 +782,6 @@ static void wpa_report_ie_mismatch(struc
+ 	}
+ 
+ 	wpa_sm_disassociate(sm, WLAN_REASON_IE_IN_4WAY_DIFFERS);
+-	wpa_sm_req_scan(sm, 0, 0);
+ }
+ 
+ 
+@@ -1791,7 +1789,6 @@ static void wpa_sm_pmksa_free_cb(struct 
+ 
+ 		os_memset(sm->pmk, 0, sizeof(sm->pmk));
+ 		wpa_sm_deauthenticate(sm, WLAN_REASON_UNSPECIFIED);
+-		wpa_sm_req_scan(sm, 0, 0);
+ 	}
+ }
+ 
+--- a/src/rsn_supp/wpa.h
++++ b/src/rsn_supp/wpa.h
+@@ -36,8 +36,6 @@ struct wpa_sm_ctx {
+ 
+ 	void (*set_state)(void *ctx, wpa_states state);
+ 	wpa_states (*get_state)(void *ctx);
+-	void (*req_scan)(void *ctx, int sec, int usec);
+-	void (*cancel_scan)(void *ctx);
+ 	void (*deauthenticate)(void * ctx, int reason_code); 
+ 	void (*disassociate)(void *ctx, int reason_code);
+ 	int (*set_key)(void *ctx, wpa_alg alg,
+--- a/src/rsn_supp/wpa_i.h
++++ b/src/rsn_supp/wpa_i.h
+@@ -120,18 +120,6 @@ static inline wpa_states wpa_sm_get_stat
+ 	return sm->ctx->get_state(sm->ctx->ctx);
+ }
+ 
+-static inline void wpa_sm_req_scan(struct wpa_sm *sm, int sec, int usec)
+-{
+-	WPA_ASSERT(sm->ctx->req_scan);
+-	sm->ctx->req_scan(sm->ctx->ctx, sec, usec);
+-}
+-
+-static inline void wpa_sm_cancel_scan(struct wpa_sm *sm)
+-{
+-	WPA_ASSERT(sm->ctx->cancel_scan);
+-	sm->ctx->cancel_scan(sm->ctx->ctx);
+-}
+-
+ static inline void wpa_sm_deauthenticate(struct wpa_sm *sm, int reason_code)
+ {
+ 	WPA_ASSERT(sm->ctx->deauthenticate);
+--- a/wpa_supplicant/preauth_test.c
++++ b/wpa_supplicant/preauth_test.c
+@@ -43,18 +43,6 @@ struct preauth_test_data {
+ };
+ 
+ 
+-static void _wpa_supplicant_req_scan(void *wpa_s, int sec, int usec)
+-{
+-	wpa_supplicant_req_scan(wpa_s, sec, usec);
+-}
+-
+-
+-static void _wpa_supplicant_cancel_scan(void *wpa_s)
+-{
+-	wpa_supplicant_cancel_scan(wpa_s);
+-}
+-
+-
+ static void _wpa_supplicant_disassociate(void *wpa_s, int reason_code)
+ {
+ 	wpa_supplicant_disassociate(wpa_s, reason_code);
+@@ -253,8 +241,6 @@ static void wpa_init_conf(struct wpa_sup
+ 	ctx->ctx = wpa_s;
+ 	ctx->set_state = _wpa_supplicant_set_state;
+ 	ctx->get_state = _wpa_supplicant_get_state;
+-	ctx->req_scan = _wpa_supplicant_req_scan;
+-	ctx->cancel_scan = _wpa_supplicant_cancel_scan;
+ 	ctx->deauthenticate = _wpa_supplicant_deauthenticate;
+ 	ctx->disassociate = _wpa_supplicant_disassociate;
+ 	ctx->set_key = wpa_supplicant_set_key;
+--- a/wpa_supplicant/wpas_glue.c
++++ b/wpa_supplicant/wpas_glue.c
+@@ -271,7 +271,6 @@ static void wpa_supplicant_notify_eapol_
+ 	    wpa_s->key_mgmt == WPA_KEY_MGMT_FT_IEEE8021X) {
+ 		wpa_supplicant_set_state(wpa_s, WPA_4WAY_HANDSHAKE);
+ 	} else {
+-		wpa_supplicant_cancel_scan(wpa_s);
+ 		wpa_supplicant_cancel_auth_timeout(wpa_s);
+ 		wpa_supplicant_set_state(wpa_s, WPA_COMPLETED);
+ 	}
+@@ -355,18 +354,6 @@ static int _wpa_ether_send(void *wpa_s, 
+ }
+ 
+ 
+-static void _wpa_supplicant_req_scan(void *wpa_s, int sec, int usec)
+-{
+-	wpa_supplicant_req_scan(wpa_s, sec, usec);
+-}
+-
+-
+-static void _wpa_supplicant_cancel_scan(void *wpa_s)
+-{
+-	wpa_supplicant_cancel_scan(wpa_s);
+-}
+-
+-
+ static void _wpa_supplicant_cancel_auth_timeout(void *wpa_s)
+ {
+ 	wpa_supplicant_cancel_auth_timeout(wpa_s);
+@@ -399,12 +386,16 @@ static wpa_states _wpa_supplicant_get_st
+ static void _wpa_supplicant_disassociate(void *wpa_s, int reason_code)
+ {
+ 	wpa_supplicant_disassociate(wpa_s, reason_code);
++	/* Schedule a scan to make sure we continue looking for networks */
++	wpa_supplicant_req_scan(wpa_s, 0, 0);
+ }
+ 
+ 
+ static void _wpa_supplicant_deauthenticate(void *wpa_s, int reason_code)
+ {
+ 	wpa_supplicant_deauthenticate(wpa_s, reason_code);
++	/* Schedule a scan to make sure we continue looking for networks */
++	wpa_supplicant_req_scan(wpa_s, 0, 0);
+ }
+ 
+ 
+@@ -576,8 +567,6 @@ int wpa_supplicant_init_wpa(struct wpa_s
+ 	ctx->ctx = wpa_s;
+ 	ctx->set_state = _wpa_supplicant_set_state;
+ 	ctx->get_state = _wpa_supplicant_get_state;
+-	ctx->req_scan = _wpa_supplicant_req_scan;
+-	ctx->cancel_scan = _wpa_supplicant_cancel_scan;
+ 	ctx->deauthenticate = _wpa_supplicant_deauthenticate;
+ 	ctx->disassociate = _wpa_supplicant_disassociate;
+ 	ctx->set_key = wpa_supplicant_set_key;

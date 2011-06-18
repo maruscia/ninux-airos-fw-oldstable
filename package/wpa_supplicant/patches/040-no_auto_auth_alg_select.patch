@@ -1,0 +1,19 @@
+--- a/wpa_supplicant/wpa_supplicant.c
++++ b/wpa_supplicant/wpa_supplicant.c
+@@ -962,6 +962,7 @@ void wpa_supplicant_associate(struct wpa
+ 		}
+ 	}
+ #endif /* IEEE8021X_EAPOL */
++#ifdef CONFIG_AUTO_AUTH_ALG_SELECT
+ 	wpa_printf(MSG_DEBUG, "Automatic auth_alg selection: 0x%x", algs);
+ 	if (ssid->auth_alg) {
+ 		algs = 0;
+@@ -975,7 +976,7 @@ void wpa_supplicant_associate(struct wpa
+ 			   algs);
+ 	}
+ 	wpa_drv_set_auth_alg(wpa_s, algs);
+-
++#endif /* CONFIG_AUTO_AUTH_ALG_SELECT */
+ 	if (bss && (wpa_scan_get_vendor_ie(bss, WPA_IE_VENDOR_TYPE) ||
+ 		    wpa_scan_get_ie(bss, WLAN_EID_RSN)) &&
+ 	    (ssid->key_mgmt & (WPA_KEY_MGMT_IEEE8021X | WPA_KEY_MGMT_PSK |

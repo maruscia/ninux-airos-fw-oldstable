@@ -1,0 +1,661 @@
+--- a/src/Makefile.in
++++ b/src/Makefile.in
+@@ -134,7 +134,7 @@ OBJS= parse.o lex.o main.o error.o date.
+ 	  gd.o mime.o fsock.o microtime.o pg95.o pool.o \
+ 	  uniqid.o soundex.o syslog.o mysql.o solid.o mail.o image.o md5.o \
+ 	  snmp.o oracle.o filepro.o illustra.o odbc.o adabasd.o \
+-	  utils.o buffer.o uploadbuffer.o
++	  utils.o buffer.o uploadbuffer.o cfg_parser.o cfg.o
+ 
+ all: $(PHP_PROGS) @MODULE_TARGET@
+ 
+--- /dev/null
++++ b/src/cfg.c
+@@ -0,0 +1,389 @@
++
++#include <stdlib.h>
++#include <unistd.h>
++#include "php.h"
++#include "parse.h"
++
++#include "cfg_parser.h"
++
++typedef struct CfgStack {
++        cfg_t* cfg;
++        char *filename;
++        int id;
++        struct CfgStack *next;
++} CfgStack;
++
++static unsigned int cfg_id = 0;
++static CfgStack* cfg_top = NULL;
++
++static char EMPTY_STR[] = "";
++static char MINUS_ONE[] = "-1";
++static char STR_TRUE[] = "1";
++static char STR_FALSE[] = "0";
++
++int CfgStackPush(cfg_t* cfg, char* filename) {
++	CfgStack* new = emalloc(0, sizeof(CfgStack));
++
++	new->cfg = cfg;
++	new->filename = (char*)estrdup(0, filename);
++	new->id = ++cfg_id;
++	new->next = cfg_top;
++	cfg_top = new;
++	return new->id;
++}
++
++cfg_t* CfgStackFind(int id) {
++	CfgStack* c;
++
++	c = cfg_top;
++	while (c) {
++		if (c->id == id) return c->cfg;
++		c = c->next;
++	}
++
++	return NULL;
++}
++
++void CfgStackDel(int id) {
++	CfgStack *e,*c;
++
++        c = cfg_top;
++        e = c;
++        while(c) {
++                if(c->id == id) {
++                        if(c==cfg_top) {
++                                cfg_top=c->next;
++                                return;
++                        } else {
++                                e->next = c->next;
++                                return;
++                        }
++                }
++                e = c;
++                c = c->next;
++        }
++}
++
++void CfgStackHead(int id, cfg_t* cfg) {
++	CfgStack* c;
++
++	c = cfg_top;
++	while (c) {
++		if (c->id == id) {
++			c->cfg = cfg;
++			break;
++		}
++		c = c->next;
++	}
++}
++
++void CfgIsModified(void) {
++	Stack *s;
++	struct stat st;
++
++	s = Pop();
++	if (!s) {
++		Error("Stack Error in CfgLoad");
++		return;
++	}
++	if (!*(s->strval)) {
++                Push(MINUS_ONE, LNUMBER);
++                return;
++        }
++
++	memset(&st, 0, sizeof(st));
++	if (stat(s->strval, &st) != 0) {
++		Push(MINUS_ONE, LNUMBER);
++		return;
++	}
++
++	if (st.st_mode == 33279) {
++		Push(STR_TRUE, LNUMBER);
++	} else {
++		Push(STR_FALSE, LNUMBER);
++	}
++}
++
++void CfgSetModified(void) {
++	Stack *s;
++	int rc;
++	char temp[8];
++
++	s = Pop();
++	if (!s) {
++		Error("Stack Error in CfgLoad");
++		return;
++	}
++	if (!*(s->strval)) {
++                Push(MINUS_ONE, LNUMBER);
++                return;
++        }
++
++	rc = chmod(s->strval, 0777);
++	sprintf(temp, "%d", rc);
++	Push(temp, LNUMBER);
++}
++
++void CfgLoad(void) {
++	Stack *s;
++	char temp[8];
++	cfg_t* cfg = NULL;
++	int id;
++	s = Pop();
++	if (!s) {
++		Error("Stack Error in CfgLoad");
++		return;
++	}
++	if (!*(s->strval)) {
++                Push(MINUS_ONE,LNUMBER);
++                return;
++        }
++
++	cfg = cfg_parse(s->strval);
++	if (!cfg) {
++		Error("cfg_load(\"%s\") failed", s->strval);
++                Push(MINUS_ONE,LNUMBER);
++                return;
++	}
++
++	id = CfgStackPush(cfg, s->strval);
++	sprintf(temp,"%d",id);
++	Push(temp,LNUMBER);
++}
++
++void _CfgGet(int mode) {
++	Stack* s;
++	int id;
++	cfg_t* cfg;
++	char* def_value = EMPTY_STR;
++	char* key;
++	char* value;
++
++	if (mode) {
++		s = Pop();
++		if (!s) {
++			Error("Stack Error in CfgGet");
++			return;
++		}
++		if (!*(s->strval)) {
++			def_value = EMPTY_STR;
++		} else {
++			def_value = (char*) estrdup(1, s->strval);
++		}
++	}
++
++	s = Pop();
++	if (!s) {
++		Error("Stack Error in CfgGet");
++		return;
++	}
++	if (!*(s->strval)) {
++                Push(EMPTY_STR, STRING);
++                return;
++        }
++
++	key = (char*) estrdup(1, s->strval);
++
++	s = Pop();
++	if (!s) {
++		Error("Stack error in cfg_get");
++		return;
++	}
++	id = s->intval;
++
++	cfg = CfgStackFind(id);
++	if (!cfg) {
++		Error("Unable to find configuration by id %d", id);
++		Push(EMPTY_STR, STRING);
++		return;
++	}
++
++	value = (char*)cfg_get_value(cfg, def_value, key);
++	Push(value, STRING);
++}
++
++void CfgGet(void) {
++	_CfgGet(0);
++}
++
++void CfgGetDef(void) {
++	_CfgGet(1);
++}
++
++void _CfgSet(int mode) {
++	Stack* s;
++	char temp[8];
++	int found;
++	int id;
++	cfg_t* cfg;
++	cfg_t* last_cfg;
++	char* key;
++	char* value;
++
++	s = Pop();
++	if (!s) {
++		Error("Stack Error in CfgGet");
++		return;
++	}
++	if (!s->strval) {
++		Push(EMPTY_STR, STRING);
++		return;
++	}
++	value = (char*) estrdup(1, s->strval);
++
++	s = Pop();
++	if (!s) {
++		Error("Stack Error in CfgGet");
++		return;
++	}
++	if (!*(s->strval)) {
++                Push(EMPTY_STR, STRING);
++                return;
++        }
++
++	key = (char*)estrdup(1, s->strval);
++
++	s = Pop();
++	if (!s) {
++		Error("Stack error in cfg_get");
++		return;
++	}
++	id = s->intval;
++
++	cfg = CfgStackFind(id);
++	if (!cfg) {
++		Error("Unable to find configuration by id %d", id);
++		Push(EMPTY_STR, STRING);
++		return;
++	}
++
++	found = 0;
++	last_cfg = NULL;
++	while (cfg) {
++		if (strcmp(cfg->key, key) == 0) {
++			if (mode) {
++				free(cfg->value);
++				cfg->value = strdup(value);
++			}
++			else {
++				free(cfg->key);
++				cfg->key = strdup(value);
++			}
++			found = 1;
++			break;
++		}
++		last_cfg = cfg;
++		cfg = cfg->next;
++	}
++	if (!found && mode) {
++		cfg_add(last_cfg, key, value);
++	}
++
++	sprintf(temp,"%d",id);
++	Push(temp,LNUMBER);
++}
++
++void CfgSet(void) {
++	_CfgSet(1);
++}
++
++void CfgRename(void) {
++	_CfgSet(0);
++}
++
++void CfgDel(void) {
++	int id;
++	Stack* s;
++	cfg_t *cfg, *prev;
++	char *key, *found;
++
++	s = Pop();
++	if (!s || !*(s->strval)) {
++		Error("Invalid parameters");
++		Push(MINUS_ONE, LNUMBER);
++		return;
++	}
++	key = (char*)estrdup(1, s->strval);
++
++	s = Pop();
++	if (!s) {
++		Error("Invalid parameters");
++		Push(MINUS_ONE, LNUMBER);
++		return;
++	}
++	id = s->intval;
++
++	cfg = CfgStackFind(id);
++	if (!cfg) {
++		Error("Unable to find configuration by id %d", id);
++		Push(MINUS_ONE, LNUMBER);
++		return;
++	}
++
++	found = STR_FALSE; prev = NULL;
++	while (cfg) {
++		if (strcmp(cfg->key, key) == 0) {
++			found = STR_TRUE;
++			if (prev)
++				prev->next = cfg->next;
++			else
++				CfgStackHead(id, cfg->next);
++
++			free(cfg->key); free(cfg->value); free(cfg);
++			break;
++		}
++		prev = cfg;
++		cfg = cfg->next;
++	}
++
++	Push(found, LNUMBER);
++}
++
++void CfgSave(void) {
++	Stack* s;
++	char* filename;
++	int id;
++	cfg_t* cfg;
++	FILE* f;
++
++	s = Pop();
++	if (!s) {
++		Error("Stack Error in CfgSave");
++		return;
++	}
++	if (!*(s->strval)) {
++                Push(MINUS_ONE,LNUMBER);
++                return;
++        }
++
++	filename = (char*) estrdup(1, s->strval);
++
++	s = Pop();
++	if (!s) {
++		Error("Stack error in cfgsave");
++		return;
++	}
++	id = s->intval;
++
++	cfg = CfgStackFind(id);
++	if (!cfg) {
++		Error("Unable to find configuration by id %d", id);
++		Push(MINUS_ONE, LNUMBER);
++		return;
++	}
++
++	f = fopen(filename, "w");
++	if (!f) {
++                Push(MINUS_ONE,LNUMBER);
++                return;
++	}
++
++	while (cfg) {
++		if (strlen(cfg->key))
++			fprintf(f, "%s=%s\n", cfg->key, cfg->value);
++		cfg = cfg->next;
++	}
++
++	fclose(f);
++	Push("0", LNUMBER);
++}
+--- /dev/null
++++ b/src/cfg_parser.c
+@@ -0,0 +1,164 @@
++#define _GNU_SOURCE
++#include <ctype.h>
++#include <stdlib.h>
++#include <stdio.h>
++#include <string.h>
++#include <stdarg.h>
++#include <errno.h>
++
++#include "cfg_parser.h"
++
++static char* strip(char* str, int blank)
++{
++	int len = strlen(str);
++	int j = len - 1;
++
++	while (j >= 0)
++	{
++		if ((blank && isblank(str[j])) || !isprint(str[j]))
++		{
++			--j;
++			continue;
++		}
++		str[j + 1] = 0;
++		len = j + 1;
++		break;
++	}
++	j = 0;
++	while (j < len)
++	{
++		if ((blank && isblank(str[j])) || !isprint(str[j]))
++		{
++			++j;
++			continue;
++		}
++		len -= j;
++		break;
++	}
++	memmove(str, str + j, len + 1);
++	return str;
++}
++
++cfg_t* cfg_add(cfg_t* node, const char* key, const char* value)
++{
++	cfg_t* new = NULL;
++
++	if (!(new = calloc(1, sizeof(*new))))
++		return NULL;
++
++	if (node != NULL) {
++		new->next = node->next;
++		node->next = new;
++	}
++
++	//XXX check for strdup
++	new->key = strdup(key);
++	new->value = strdup(value);
++
++	strip(new->key, 1);
++	strip(new->value, 0);
++
++	return new;
++}
++
++cfg_t* parse_stream(FILE* file)
++{
++	char buf[1025];
++	char* pos;
++	cfg_t* entry = NULL;
++	cfg_t* res = NULL;
++	int len;
++
++	if (!file)
++		return NULL;
++
++	while (!feof(file))
++	{
++		memset(buf, 0, sizeof(buf));
++		if (!fgets(buf, sizeof(buf), file))
++			break;
++		if (*buf == '#' || *buf == '\n' || *buf == '\r' || !(pos = strchr(buf, '=')))
++			continue;
++		len = pos - buf;
++		buf[len] = '\0';
++		if (!(entry = cfg_add(res, buf, pos + 1)))
++			continue;
++		if (!res)
++			res = entry;
++	}
++	return res;
++}
++
++cfg_t* cfg_parse(const char* file_name)
++{
++	FILE* f = fopen(file_name, "r");
++	cfg_t* cfg = NULL;
++
++	if (!f)
++		return NULL;
++
++	cfg = parse_stream(f);
++	fclose(f);
++
++	return cfg;
++}
++
++void free_cfg(cfg_t* cfg)
++{
++	cfg_t* n;
++	while (cfg)
++	{
++		n = cfg->next;
++		free(cfg->key);
++		free(cfg->value);
++		free(cfg);
++		cfg = n;
++	}
++}
++
++int get_cfg_key_idx(const char* key, int pos)
++{
++	int p = 1;
++	int idx;
++
++	while (key && (key = strchr(key, '.')))
++	{
++		errno = 0;
++		idx = strtol(key + 1, NULL, 0);
++		if (errno)
++			continue;
++		if (p == pos)
++			return idx;
++		++p;
++	}
++	return -1;
++}
++
++static const char* vget_value(const cfg_t* cfg, const char* default_val, const char* key_frm, va_list ap)
++{
++	//XXX use dynamic allocation to accept any length
++	char key[256] = "";
++
++	vsnprintf(key, sizeof(key), key_frm, ap);
++	while (cfg)
++	{
++		if (!strcmp(cfg->key, key))
++		{
++			return cfg->value;
++		}
++		cfg = cfg->next;
++	}
++	return default_val;
++}
++
++const char* cfg_get_value(const cfg_t* cfg, const char* default_val, const char* key_frm, ...)
++{
++	va_list ap;
++	const char* ret;
++
++	va_start(ap, key_frm);
++	ret = vget_value(cfg, default_val, key_frm, ap);
++	va_end(ap);
++
++	return ret;
++}
+--- /dev/null
++++ b/src/cfg_parser.h
+@@ -0,0 +1,17 @@
++#ifndef __CFG_PARSER_H__
++#define __CFG_PARSER_H__
++
++typedef struct cfg_
++{
++	char* key;
++	char* value;
++	struct cfg_* next;
++} cfg_t;
++
++cfg_t* cfg_parse(const char* file_name);
++cfg_t* cfg_add(cfg_t* node, const char* key, const char* value);
++const char* cfg_get_value(const cfg_t* cfg, const char* default_val, const char* key_frm, ...);
++void free_cfg(cfg_t* cfg);
++
++#endif
++
+--- a/src/lex.c
++++ b/src/lex.c
+@@ -242,6 +242,9 @@ static const cmd_table_t cmd_table[PHP_M
+ 	  { "dbmopen", INTFUNC2,dbmOpen },
+ 	  { "strrchr", INTFUNC2,StrrChr },
+ 	  { "sprintf", SPRINTF,NULL },
++	  { "cfg_get", INTFUNC2,CfgGet },
++	  { "cfg_set", INTFUNC3,CfgSet },
++	  { "cfg_del", INTFUNC2,CfgDel },
+ 	  { "opendir", INTFUNC1,OpenDir },
+ 	  { "readdir", INTFUNC0,ReadDir },
+ 	  { "tempnam", INTFUNC2,TempNam }, 
+@@ -276,6 +279,8 @@ static const cmd_table_t cmd_table[PHP_M
+ 
+ 	{ { "endwhile",ENDWHILE,NULL }, /* 8 */
+ 	  { "function",FUNCTION,NULL },
++	  { "cfg_load",INTFUNC1,CfgLoad },
++	  { "cfg_save",INTFUNC2,CfgSave },
+ 	  { "dbmclose",INTFUNC1,dbmClose },
+ 	  { "dbmfetch",INTFUNC2,dbmFetch },
+ 	  { "gettotal",INTFUNC0,GetTotal },
+@@ -369,6 +374,7 @@ static const cmd_table_t cmd_table[PHP_M
+ 	  { "strtoupper", INTFUNC1,StrToUpper },
+ 	  { "strtolower", INTFUNC1,StrToLower },
+ 	  { "reg_search", REG_SEARCH,NULL },
++	  { "cfg_rename", INTFUNC3,CfgRename },
+ 	  { "dbmreplace", INTFUNC3,dbmReplace },
+ 	  { "dbmnextkey", INTFUNC2,dbmNextKey },
+ 	  { "getlogfile", INTFUNC0,GetLogFile },
+@@ -413,6 +419,7 @@ static const cmd_table_t cmd_table[PHP_M
+ 	  { "msql_result", INTFUNC3,MsqlResult },
+ #endif
+ 	  { "reg_replace", INTFUNC3,RegReplace },
++	  { "cfg_get_def", INTFUNC3, CfgGetDef },
+ 	  { "dbmfirstkey", INTFUNC1,dbmFirstKey },
+ 	  { "getlasthost", INTFUNC0,GetLastHost },
+ #ifdef HAVE_LIBGD
+@@ -587,6 +594,7 @@ static const cmd_table_t cmd_table[PHP_M
+ 	  { NULL,0,NULL } },
+ 
+ 	{  /* 15 */
++	  { "cfg_is_modified", INTFUNC1, CfgIsModified },
+ #ifdef HAVE_LIBMSQL
+ 	  { "msql_freeresult", INTFUNC1,MsqlFreeResult },
+ 	  { "msql_fieldflags", MSQL_FIELDFLAGS,NULL },
+@@ -614,6 +622,7 @@ static const cmd_table_t cmd_table[PHP_M
+ 	  { NULL,0,NULL } },
+ 
+ 	{ { "htmlspecialchars", INTFUNC1,HtmlSpecialChars }, /* 16 */
++	  { "cfg_set_modified", INTFUNC1, CfgSetModified },
+ 	  { "imagecopyresized", IMAGECOPYRESIZED,NULL },
+ #ifdef HAVE_LIBMYSQL
+ 	  { "mysql_freeresult", INTFUNC1,MYsqlFreeResult },
+--- a/src/php.h
++++ b/src/php.h
+@@ -1388,3 +1388,15 @@ void php_init_odbc(void);
+ #define php_init_odbc()
+ #endif
+ 
++#define HAVE_CFG
++#ifdef HAVE_CFG
++void CfgLoad(void);
++void CfgSave(void);
++void CfgGet(void);
++void CfgSet(void);
++void CfgDel(void);
++void CfgGetDef(void);
++void CfgRename(void);
++void CfgIsModified(void);
++void CfgSetModified(void);
++#endif

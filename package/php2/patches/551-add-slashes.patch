@@ -1,0 +1,30 @@
+--- a/src/cfg.c
++++ b/src/cfg.c
+@@ -199,7 +199,7 @@ void _CfgGet(int mode) {
+ 	}
+ 
+ 	value = (char*)cfg_get_value(cfg, def_value, key);
+-	Push(value, STRING);
++	Push(AddSlashes(value,1), STRING);
+ }
+ 
+ void CfgGet(void) {
+@@ -230,6 +230,7 @@ void _CfgSet(int mode) {
+ 		return;
+ 	}
+ 	value = (char*) estrdup(1, s->strval);
++	StripSlashes(value);
+ 
+ 	s = Pop();
+ 	if (!s) {
+--- a/src/post.c
++++ b/src/post.c
+@@ -273,7 +273,7 @@ char *getpost(void) {
+ 
+ 		list_for_each_safe(pos, n, &ub->parameters) {
+ 			h = list_entry(pos, struct header, list);
+-			Push(h->value, STRING);
++			Push(AddSlashes(h->value,1), STRING);
+ 			SetVar(h->name, 0, 0);
+ 
+ 			if (h->is_file) {

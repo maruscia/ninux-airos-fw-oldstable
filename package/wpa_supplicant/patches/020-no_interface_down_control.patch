@@ -1,0 +1,48 @@
+--- a/src/drivers/driver_wext.c
++++ b/src/drivers/driver_wext.c
+@@ -1045,6 +1045,7 @@ void * wpa_driver_wext_init(void *ctx, c
+ 	if (wpa_driver_wext_get_ifflags(drv, &flags) != 0)
+ 		printf("Could not get interface '%s' flags\n", drv->ifname);
+ 	else if (!(flags & IFF_UP)) {
++#ifdef CONFIG_IFACE_DOWN_CONTROL
+ 		if (wpa_driver_wext_set_ifflags(drv, flags | IFF_UP) != 0) {
+ 			printf("Could not set interface '%s' UP\n",
+ 			       drv->ifname);
+@@ -1060,6 +1061,7 @@ void * wpa_driver_wext_init(void *ctx, c
+ 				   "initialization", drv->ifname);
+ 			sleep(1);
+ 		}
++#endif
+ 	}
+ 
+ 	/*
+@@ -1106,7 +1108,9 @@ void * wpa_driver_wext_init(void *ctx, c
+ void wpa_driver_wext_deinit(void *priv)
+ {
+ 	struct wpa_driver_wext_data *drv = priv;
++#ifdef CONFIG_IFACE_DOWN_CONTROL
+ 	int flags;
++#endif /* CONFIG_IFACE_DOWN_CONTROL */
+ 
+ 	eloop_cancel_timeout(wpa_driver_wext_scan_timeout, drv, drv->ctx);
+ 
+@@ -1123,15 +1127,19 @@ void wpa_driver_wext_deinit(void *priv)
+ 	if (drv->mlme_sock >= 0)
+ 		eloop_unregister_read_sock(drv->mlme_sock);
+ 
++#ifdef CONFIG_IFACE_DOWN_CONTROL
+ 	if (wpa_driver_wext_get_ifflags(drv, &flags) == 0)
+ 		(void) wpa_driver_wext_set_ifflags(drv, flags & ~IFF_UP);
++#endif /* CONFIG_IFACE_DOWN_CONTROL */
+ 
+ #ifdef CONFIG_CLIENT_MLME
+ 	if (drv->mlmedev[0]) {
++#ifdef CONFIG_IFACE_DOWN_CONTROL
+ 		if (wpa_driver_wext_get_ifflags_ifname(drv, drv->mlmedev,
+ 						       &flags) == 0)
+ 			(void) wpa_driver_wext_set_ifflags_ifname(
+ 				drv, drv->mlmedev, flags & ~IFF_UP);
++#endif /* CONFIG_IFACE_DOWN_CONTROL */
+ 		wpa_driver_prism2_param_set(drv, PRISM2_PARAM_MGMT_IF, 0);
+ 		wpa_driver_prism2_param_set(drv, PRISM2_PARAM_USER_SPACE_MLME,
+ 					    0);

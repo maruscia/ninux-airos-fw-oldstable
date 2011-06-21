@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+
+if [ ! -f /etc/persistent/custom-poststart ]; then
+echo "#!/bin/sh" >> /etc/persistent/custom-poststart
+echo "#Custom ninux.org post start AirOS configuration file" >> /etc/persistent/custom-poststart
+echo "echo 1 > /proc/sys/net/ipv6/conf/all/forwarding" >> /etc/persistent/custom-poststart 
+echo "olsrd -d 0 -f /etc/persistent/olsrd6.conf" >> /etc/persistent/custom-poststart
+fi
+
+if [ ! -f /etc/persistent/olsrd6.conf ]; then
+cp /usr/etc/olsrd6.conf /etc/persistent
+fi
+
+chmod +x /etc/persistent/custom-poststart
+
+
+sh /etc/persistent/custom-poststart
+
+cfgmtd -w -p /etc
+
